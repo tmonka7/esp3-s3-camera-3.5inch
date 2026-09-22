@@ -1,0 +1,21 @@
+idf_component_register(
+    SRCS
+        "src/bsp_board.c"
+        "src/bsp_i2c.c"
+        "src/bsp_io_expander.c"
+        "src/bsp_display.c"
+        "src/bsp_camera.c"
+        "src/bsp_storage.c"
+    INCLUDE_DIRS
+        "include"
+    REQUIRES
+        driver
+        esp_lcd
+        esp_timer
+        fatfs
+        spiffs
+        sdmmc
+        esp_driver_sdmmc
+    PRIV_REQUIRES
+        esp_psram
+)

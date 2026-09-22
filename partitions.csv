@@ -1,0 +1,7 @@
+# ESP32-S3-Touch-LCD-3.5-C -- 16 MB flash
+# Name,       Type, SubType,  Offset,   Size,     Flags
+nvs,          data, nvs,      0x9000,   0x6000,
+phy_init,     data, phy,      0xf000,   0x1000,
+factory,      app,  factory,  0x20000,  0x500000,
+assets,       data, spiffs,   0x520000, 0x200000,
+# 0x720000..0x1000000 (~8.6 MB) left free for a future OTA layout.

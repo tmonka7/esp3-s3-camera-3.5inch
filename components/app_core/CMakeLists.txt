@@ -1,0 +1,17 @@
+idf_component_register(
+    SRCS
+        "src/app_events.c"
+        "src/app_settings.c"
+        "src/app_time.c"
+        "src/app_net.c"
+    INCLUDE_DIRS
+        "include"
+    REQUIRES
+        bsp
+        esp_event
+        nvs_flash
+        esp_timer
+        esp_wifi
+        esp_netif
+        lwip
+)

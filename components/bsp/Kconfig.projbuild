@@ -1,0 +1,215 @@
+menu "Board Support (ESP32-S3-Touch-LCD-3.5-C)"
+
+    config BSP_PINS_VERIFIED
+        bool "I have checked every pin below against my board schematic"
+        default n
+        help
+            The camera DVP pins below are taken from the Waveshare wiki for
+            ESP32-S3-Touch-LCD-3.5 and are known good. The LCD, I2C, TF-card
+            and RS485 pins are best-known defaults that Waveshare publishes
+            only as symbolic names, so they MUST be checked against
+            ESP32-S3-Touch-LCD-3.5-Schematic.pdf before you trust them.
+
+            Until you enable this option the firmware prints a loud warning at
+            boot. Enabling it changes nothing else.
+
+    menu "Display (ST7796, SPI)"
+        config BSP_LCD_SPI_HOST
+            int "SPI host (1 = SPI2_HOST, 2 = SPI3_HOST)"
+            range 1 2
+            default 1
+        config BSP_LCD_PIN_SCLK
+            int "LCD SCLK"
+            default 5
+        config BSP_LCD_PIN_MOSI
+            int "LCD MOSI"
+            default 1
+        config BSP_LCD_PIN_MISO
+            int "LCD MISO (-1 if not wired)"
+            default 2
+        config BSP_LCD_PIN_CS
+            int "LCD CS"
+            default 12
+        config BSP_LCD_PIN_DC
+            int "LCD DC"
+            default 3
+        config BSP_LCD_PIN_RST
+            int "LCD RST (-1 when driven by the TCA9554 expander)"
+            default -1
+        config BSP_LCD_PIN_BL
+            int "Backlight GPIO (-1 when driven by the TCA9554 expander)"
+            default -1
+        config BSP_LCD_PIXEL_CLOCK_HZ
+            int "SPI pixel clock (Hz)"
+            default 40000000
+        config BSP_LCD_H_RES
+            int "Horizontal resolution"
+            default 320
+        config BSP_LCD_V_RES
+            int "Vertical resolution"
+            default 480
+        config BSP_LCD_SWAP_XY
+            bool "Swap X/Y (landscape)"
+            default y
+        config BSP_LCD_MIRROR_X
+            bool "Mirror X"
+            default y
+        config BSP_LCD_MIRROR_Y
+            bool "Mirror Y"
+            default n
+        config BSP_LCD_BGR_ELEMENT_ORDER
+            bool "Panel uses BGR element order"
+            default y
+    endmenu
+
+    menu "System I2C bus"
+        comment "Shared by FT6336 touch, TCA9554, AXP2101, PCF85063, QMI8658, ES8311"
+        config BSP_I2C_PORT
+            int "I2C port"
+            range 0 1
+            default 0
+        config BSP_I2C_PIN_SDA
+            int "I2C SDA"
+            default 8
+        config BSP_I2C_PIN_SCL
+            int "I2C SCL"
+            default 7
+        config BSP_I2C_FREQ_HZ
+            int "I2C clock (Hz)"
+            default 400000
+    endmenu
+
+    menu "Touch (FT6336)"
+        config BSP_TOUCH_PIN_INT
+            int "Touch INT (-1 to poll)"
+            default 4
+        config BSP_TOUCH_PIN_RST
+            int "Touch RST (-1 when driven by the expander)"
+            default -1
+    endmenu
+
+    menu "IO expander (TCA9554)"
+        config BSP_USE_IO_EXPANDER
+            bool "Board has a TCA9554 expander"
+            default y
+        config BSP_IO_EXPANDER_ADDR
+            hex "TCA9554 7-bit address"
+            default 0x20
+        config BSP_IO_EXP_BIT_LCD_RST
+            int "Expander bit driving LCD RST (-1 if unused)"
+            default 0
+        config BSP_IO_EXP_BIT_LCD_BL
+            int "Expander bit driving the backlight enable (-1 if unused)"
+            default 1
+        config BSP_IO_EXP_BIT_TP_RST
+            int "Expander bit driving touch RST (-1 if unused)"
+            default 2
+        config BSP_IO_EXP_BIT_CAM_PWDN
+            int "Expander bit driving CAM_PWDN (-1 if unused)"
+            default 3
+    endmenu
+
+    menu "Camera (DVP -- OV5640 / OV2640)"
+        comment "These match the Waveshare wiki pin table"
+        config BSP_CAM_PIN_XCLK
+            int "XCLK"
+            default 38
+        config BSP_CAM_PIN_PCLK
+            int "PCLK"
+            default 41
+        config BSP_CAM_PIN_VSYNC
+            int "VSYNC"
+            default 17
+        config BSP_CAM_PIN_HREF
+            int "HREF"
+            default 18
+        config BSP_CAM_PIN_D0
+            int "D0 (Y2)"
+            default 45
+        config BSP_CAM_PIN_D1
+            int "D1 (Y3)"
+            default 47
+        config BSP_CAM_PIN_D2
+            int "D2 (Y4)"
+            default 48
+        config BSP_CAM_PIN_D3
+            int "D3 (Y5)"
+            default 46
+        config BSP_CAM_PIN_D4
+            int "D4 (Y6)"
+            default 42
+        config BSP_CAM_PIN_D5
+            int "D5 (Y7)"
+            default 40
+        config BSP_CAM_PIN_D6
+            int "D6 (Y8)"
+            default 39
+        config BSP_CAM_PIN_D7
+            int "D7 (Y9)"
+            default 21
+        config BSP_CAM_PIN_SIOD
+            int "SIOD (SCCB SDA -- shared with the system I2C bus)"
+            default 8
+        config BSP_CAM_PIN_SIOC
+            int "SIOC (SCCB SCL -- shared with the system I2C bus)"
+            default 7
+        config BSP_CAM_PIN_PWDN
+            int "PWDN (-1 when driven by the expander or tied off)"
+            default -1
+        config BSP_CAM_PIN_RESET
+            int "RESET (-1 when tied off)"
+            default -1
+        config BSP_CAM_XCLK_FREQ_HZ
+            int "XCLK frequency (Hz)"
+            default 20000000
+    endmenu
+
+    menu "TF card (SDMMC, 1-bit)"
+        config BSP_SD_PIN_CLK
+            int "SDMMC CLK"
+            default 14
+        config BSP_SD_PIN_CMD
+            int "SDMMC CMD"
+            default 15
+        config BSP_SD_PIN_D0
+            int "SDMMC D0"
+            default 16
+        config BSP_SD_FORMAT_IF_MOUNT_FAILED
+            bool "Format the card if it cannot be mounted"
+            default n
+    endmenu
+
+    menu "RS485 / Modbus-RTU UART"
+        config BSP_RS485_UART_NUM
+            int "UART port"
+            range 1 2
+            default 1
+        config BSP_RS485_PIN_TX
+            int "RS485 TX"
+            default 43
+        config BSP_RS485_PIN_RX
+            int "RS485 RX"
+            default 44
+        config BSP_RS485_PIN_DE
+            int "RS485 DE/RE direction pin (-1 for auto-direction transceivers)"
+            default 13
+    endmenu
+
+    menu "General-purpose UART (console page)"
+        config BSP_UART_NUM
+            int "UART port"
+            range 1 2
+            default 2
+        config BSP_UART_PIN_TX
+            int "TX"
+            default 9
+        config BSP_UART_PIN_RX
+            int "RX"
+            default 10
+    endmenu
+
+    config BSP_BUZZER_PIN
+        int "Buzzer / alert GPIO (-1 if none)"
+        default -1
+
+endmenu
