@@ -22,6 +22,28 @@ extern const ui_screen_def_t ui_screen_storage_def;
 extern const ui_screen_def_t ui_screen_playback_def;
 extern const ui_screen_def_t ui_screen_settings_def;
 extern const ui_screen_def_t ui_screen_datetime_def;
+extern const ui_screen_def_t ui_screen_access_def;
+extern const ui_screen_def_t ui_screen_cards_def;
+
+/* ---- modal edit dialogs (ui_dialog.c) ---------------------------------- *
+ *
+ * `apply` receives the edited value. `on_done` runs afterwards and is where
+ * the screen rebuilds whatever the edit changed -- passing it keeps the
+ * dialog from having to know which screen opened it.
+ */
+typedef void (*ui_apply_number_t)(int value);
+typedef void (*ui_apply_text_t)(const char *text);
+
+/** Dimmed overlay with a titled card. Returns the card, ready to fill. */
+lv_obj_t *ui_dialog_shell(const char *title, lv_coord_t height);
+
+/** Tears the modal down. Usable directly as an lv_event_cb_t. */
+void ui_dialog_close(lv_event_t *e);
+
+void ui_edit_number(const char *title, int min, int max, int current,
+                    ui_apply_number_t apply, void (*on_done)(void));
+void ui_edit_text(const char *title, const char *current, bool password,
+                  ui_apply_text_t apply, void (*on_done)(void));
 
 /**
  * The right-hand slot of the standard header, where screens park their

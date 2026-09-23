@@ -9,6 +9,7 @@ idf_component_register(
         "src/lcd_st7796.c"
         "src/touch_ft6336.c"
         "src/lvgl_port.c"
+        "src/rfid_rc522.c"
     INCLUDE_DIRS
         "include"
     REQUIRES

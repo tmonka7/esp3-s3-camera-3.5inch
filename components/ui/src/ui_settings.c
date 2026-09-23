@@ -17,6 +17,8 @@
 #include "bsp_camera.h"
 #include "bsp_display.h"
 #include "bsp_storage.h"
+#include "bsp_rfid.h"
+#include "svc_access.h"
 #include "svc_detect.h"
 #include "svc_modbus.h"
 #include "ui_internal.h"
@@ -28,17 +30,18 @@ typedef enum {
     CAT_NETWORK,
     CAT_CAMERA,
     CAT_DETECTION,
+    CAT_ACCESS,
     CAT_MODBUS,
     CAT_ABOUT,
     CAT_COUNT,
 } settings_cat_t;
 
 static const char *k_cat_names[CAT_COUNT] = {
-    "System", "Network", "Camera", "Detection", "Modbus", "About",
+    "System", "Network", "Camera", "Detection", "Access", "Modbus", "About",
 };
 static const char *k_cat_icons[CAT_COUNT] = {
     LV_SYMBOL_SETTINGS, LV_SYMBOL_WIFI, LV_SYMBOL_IMAGE,
-    LV_SYMBOL_EYE_OPEN, LV_SYMBOL_LIST, LV_SYMBOL_FILE,
+    LV_SYMBOL_EYE_OPEN, LV_SYMBOL_BELL, LV_SYMBOL_LIST, LV_SYMBOL_FILE,
 };
 
 static lv_obj_t      *s_cats[CAT_COUNT];
@@ -50,119 +53,23 @@ static void build_panel(void);
 /* --------------------------------------------------------------------------
  * Editing dialogs
  *
- * Two shapes cover everything on this screen: a bounded number and a line of
- * text. Both are modal so a half-finished edit cannot be left behind on a
- * screen change.
+ * The dialogs themselves live in ui_dialog.c, shared with the credential
+ * list. These wrappers just bind them to this screen, whose panel has to be
+ * rebuilt after every edit so the row shows the new value.
  * ------------------------------------------------------------------------ */
 typedef void (*apply_number_t)(int value);
 typedef void (*apply_text_t)(const char *text);
 
-static lv_obj_t      *s_dialog;
-static lv_obj_t      *s_dialog_field;
-static apply_number_t s_apply_number;
-static apply_text_t   s_apply_text;
-
-static void dialog_close(lv_event_t *e)
-{
-    (void)e;
-    if (s_dialog) {
-        lv_obj_del(s_dialog);
-        s_dialog       = NULL;
-        s_dialog_field = NULL;
-        s_apply_number = NULL;
-        s_apply_text   = NULL;
-    }
-}
-
-static void dialog_ok(lv_event_t *e)
-{
-    (void)e;
-    if (!s_dialog_field) {
-        return;
-    }
-
-    /* Copy what we need before the dialog is torn down: the apply callback
-     * usually rebuilds the panel underneath us. */
-    if (s_apply_number) {
-        const int value = (int)lv_spinbox_get_value(s_dialog_field);
-        const apply_number_t fn = s_apply_number;
-        dialog_close(NULL);
-        fn(value);
-    } else if (s_apply_text) {
-        char text[96];
-        strlcpy(text, lv_textarea_get_text(s_dialog_field), sizeof(text));
-        const apply_text_t fn = s_apply_text;
-        dialog_close(NULL);
-        fn(text);
-    } else {
-        dialog_close(NULL);
-    }
-
-    build_panel();
-}
-
-static lv_obj_t *dialog_shell(const char *title, lv_coord_t height)
-{
-    dialog_close(NULL);
-
-    s_dialog = lv_obj_create(lv_scr_act());
-    lv_obj_remove_style_all(s_dialog);
-    lv_obj_set_size(s_dialog, ui_width(), ui_height());
-    lv_obj_set_style_bg_color(s_dialog, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(s_dialog, LV_OPA_60, 0);
-    lv_obj_clear_flag(s_dialog, LV_OBJ_FLAG_SCROLLABLE);
-
-    lv_obj_t *panel = ui_card(s_dialog, ui_width() - 60, height);
-    lv_obj_align(panel, LV_ALIGN_TOP_MID, 0, 16);
-    ui_flex_col(panel, 8);
-
-    ui_label(panel, title, &lv_font_montserrat_14, UI_COL_TEXT);
-    return panel;
-}
-
 static void edit_number(const char *title, int min, int max, int current,
                         apply_number_t apply)
 {
-    lv_obj_t *panel = dialog_shell(title, 132);
-    s_apply_number = apply;
-
-    s_dialog_field = lv_spinbox_create(panel);
-    lv_spinbox_set_range(s_dialog_field, min, max);
-    lv_spinbox_set_digit_format(s_dialog_field, 5, 0);
-    lv_spinbox_set_value(s_dialog_field, current);
-    lv_obj_set_size(s_dialog_field, LV_PCT(100), 34);
-
-    lv_obj_t *row = lv_obj_create(panel);
-    lv_obj_remove_style_all(row);
-    lv_obj_set_size(row, LV_PCT(100), 34);
-    ui_flex_row(row, UI_PAD);
-    lv_obj_set_width(ui_button_soft(row, "Cancel", dialog_close, NULL), 110);
-    lv_obj_set_width(ui_button(row,      "Save",   dialog_ok,    NULL), 110);
+    ui_edit_number(title, min, max, current, apply, build_panel);
 }
 
 static void edit_text(const char *title, const char *current, bool password,
                       apply_text_t apply)
 {
-    lv_obj_t *panel = dialog_shell(title, 118);
-    s_apply_text = apply;
-
-    s_dialog_field = lv_textarea_create(panel);
-    lv_textarea_set_one_line(s_dialog_field, true);
-    lv_textarea_set_password_mode(s_dialog_field, password);
-    lv_textarea_set_text(s_dialog_field, current ? current : "");
-    lv_obj_set_size(s_dialog_field, LV_PCT(100), 34);
-
-    lv_obj_t *row = lv_obj_create(panel);
-    lv_obj_remove_style_all(row);
-    lv_obj_set_size(row, LV_PCT(100), 34);
-    ui_flex_row(row, UI_PAD);
-    lv_obj_set_width(ui_button_soft(row, "Cancel", dialog_close, NULL), 110);
-    lv_obj_set_width(ui_button(row,      "Save",   dialog_ok,    NULL), 110);
-
-    lv_obj_t *kb = lv_keyboard_create(s_dialog);
-    lv_obj_set_size(kb, ui_width(), 150);
-    lv_obj_align(kb, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_keyboard_set_textarea(kb, s_dialog_field);
+    ui_edit_text(title, current, password, apply, build_panel);
 }
 
 /* --------------------------------------------------------------------------
@@ -412,7 +319,7 @@ static void row_reboot(lv_event_t *e)
 static void confirm_reset_yes(lv_event_t *e)
 {
     (void)e;
-    dialog_close(NULL);
+    ui_dialog_close(NULL);
     app_settings_factory_reset();
     ui_toast("Defaults restored - restarting");
     vTaskDelay(pdMS_TO_TICKS(800));
@@ -423,7 +330,7 @@ static void row_factory_reset(lv_event_t *e)
 {
     (void)e;
 
-    lv_obj_t *panel = dialog_shell("Reset every setting to defaults?", 116);
+    lv_obj_t *panel = ui_dialog_shell("Reset every setting to defaults?", 116);
 
     ui_label(panel, "Switch names, bindings, Wi-Fi and the Modbus map are\n"
                     "all restored. Recordings on the TF card are kept.",
@@ -433,7 +340,7 @@ static void row_factory_reset(lv_event_t *e)
     lv_obj_remove_style_all(row);
     lv_obj_set_size(row, LV_PCT(100), 34);
     ui_flex_row(row, UI_PAD);
-    lv_obj_set_width(ui_button_soft(row, "Cancel", dialog_close, NULL), 110);
+    lv_obj_set_width(ui_button_soft(row, "Cancel", ui_dialog_close, NULL), 110);
 
     lv_obj_t *yes = ui_button(row, "Reset", confirm_reset_yes, NULL);
     lv_obj_set_width(yes, 110);
@@ -541,6 +448,152 @@ static void build_detection(lv_obj_t *p)
     ui_list_row(p, "Clip Length", buf, row_clip, NULL);
 }
 
+
+/* --------------------------------------------------------------------------
+ * Access control
+ * ------------------------------------------------------------------------ */
+static void apply_strike(int v)
+{
+    app_settings()->access_strike_ms = (uint16_t)(v * 1000);
+    app_settings_commit();
+}
+
+static void apply_face_threshold(int v)
+{
+    app_settings()->access_face_threshold = (uint8_t)v;
+    app_settings_commit();
+}
+
+static void apply_max_failures(int v)
+{
+    app_settings()->access_max_failures = (uint8_t)v;
+    app_settings_commit();
+}
+
+static void apply_lockout(int v)
+{
+    app_settings()->access_lockout_s = (uint16_t)v;
+    app_settings_commit();
+}
+
+static void row_card_toggle(lv_event_t *e)
+{
+    (void)e;
+    app_settings()->access_card_enabled = !app_settings()->access_card_enabled;
+    app_settings_commit();
+    build_panel();
+}
+
+static void row_face_toggle(lv_event_t *e)
+{
+    (void)e;
+    app_settings_t *cfg = app_settings();
+
+    /* Switching it on with nothing behind it would be a silent no-op, and the
+     * user would reasonably assume the door now opens to their face. */
+    if (!cfg->access_face_enabled && !svc_access_face_available()) {
+        ui_toast("No face recogniser is installed");
+        return;
+    }
+    cfg->access_face_enabled = !cfg->access_face_enabled;
+    app_settings_commit();
+    build_panel();
+}
+
+static void row_snapshot_toggle(lv_event_t *e)
+{
+    (void)e;
+    app_settings()->access_snapshot = !app_settings()->access_snapshot;
+    app_settings_commit();
+    build_panel();
+}
+
+static void row_access_beep(lv_event_t *e)
+{
+    (void)e;
+    app_settings()->access_beep = !app_settings()->access_beep;
+    app_settings_commit();
+    build_panel();
+}
+
+static void row_strike(lv_event_t *e)
+{
+    (void)e;
+    edit_number("Unlock time (seconds)", 1, 60,
+                app_settings()->access_strike_ms / 1000, apply_strike);
+}
+
+static void row_face_threshold(lv_event_t *e)
+{
+    (void)e;
+    edit_number("Face match threshold (%)", 50, 99,
+                app_settings()->access_face_threshold, apply_face_threshold);
+}
+
+static void row_max_failures(lv_event_t *e)
+{
+    (void)e;
+    edit_number("Failures before lockout (0 = never)", 0, 20,
+                app_settings()->access_max_failures, apply_max_failures);
+}
+
+static void row_lockout(lv_event_t *e)
+{
+    (void)e;
+    edit_number("Lockout time (seconds)", 5, 600,
+                app_settings()->access_lockout_s, apply_lockout);
+}
+
+static void row_credentials(lv_event_t *e)
+{
+    (void)e;
+    ui_show(UI_SCREEN_CARDS);
+}
+
+static void build_access(lv_obj_t *p)
+{
+    const app_settings_t *cfg = app_settings();
+    char buf[48];
+
+    if (bsp_rfid_present()) {
+        snprintf(buf, sizeof(buf), "MFRC522 (0x%02X)", bsp_rfid_chip_version());
+    } else {
+        strlcpy(buf, "not detected", sizeof(buf));
+    }
+    ui_list_row(p, "Reader", buf, NULL, NULL);
+
+    snprintf(buf, sizeof(buf), "%u stored", (unsigned)svc_access_cred_count());
+    ui_list_row(p, "Credentials", buf, row_credentials, NULL);
+
+    ui_list_row(p, "Card Entry", onoff(cfg->access_card_enabled),
+                row_card_toggle, NULL);
+
+    ui_list_row(p, "Face Entry",
+                svc_access_face_available() ? onoff(cfg->access_face_enabled)
+                                            : "unavailable",
+                row_face_toggle, NULL);
+
+    snprintf(buf, sizeof(buf), "%u %%", cfg->access_face_threshold);
+    ui_list_row(p, "Face Threshold", buf, row_face_threshold, NULL);
+
+    snprintf(buf, sizeof(buf), "%u s", (unsigned)(cfg->access_strike_ms / 1000));
+    ui_list_row(p, "Unlock Time", buf, row_strike, NULL);
+
+    if (cfg->access_max_failures) {
+        snprintf(buf, sizeof(buf), "%u", cfg->access_max_failures);
+    } else {
+        strlcpy(buf, "never", sizeof(buf));
+    }
+    ui_list_row(p, "Lockout After", buf, row_max_failures, NULL);
+
+    snprintf(buf, sizeof(buf), "%u s", cfg->access_lockout_s);
+    ui_list_row(p, "Lockout Time", buf, row_lockout, NULL);
+
+    ui_list_row(p, "Photo Each Entry", onoff(cfg->access_snapshot),
+                row_snapshot_toggle, NULL);
+
+    ui_list_row(p, "Beep", onoff(cfg->access_beep), row_access_beep, NULL);
+}
 static void build_modbus(lv_obj_t *p)
 {
     const app_settings_t *cfg = app_settings();
@@ -610,6 +663,7 @@ static void build_panel(void)
     case CAT_NETWORK:   build_network(s_panel);   break;
     case CAT_CAMERA:    build_camera(s_panel);    break;
     case CAT_DETECTION: build_detection(s_panel); break;
+    case CAT_ACCESS:    build_access(s_panel);    break;
     case CAT_MODBUS:    build_modbus(s_panel);    break;
     case CAT_ABOUT:     build_about(s_panel);     break;
     default: break;
@@ -682,7 +736,7 @@ static void on_enter(void)
 
 static void on_leave(void)
 {
-    dialog_close(NULL);
+    ui_dialog_close(NULL);
 }
 
 const ui_screen_def_t ui_screen_settings_def = {

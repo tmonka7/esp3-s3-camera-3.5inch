@@ -21,7 +21,7 @@ extern "C" {
 
 /* Bump whenever the struct layout changes; a mismatch falls back to
  * defaults instead of reading a stale layout. */
-#define APP_SETTINGS_VERSION    3
+#define APP_SETTINGS_VERSION    4
 
 typedef enum {
     APP_LANG_EN = 0,
@@ -124,6 +124,21 @@ typedef struct {
     uint16_t     temp_reg_humidity;
     uint16_t     temp_reg_outdoor;
     int16_t      temp_setpoint_c10;   /* setpoint x10, e.g. 260 = 26.0 */
+
+    /* ---- access control ---- *
+     *
+     * Credentials themselves are NOT here: they live in their own NVS
+     * namespace so that bumping APP_SETTINGS_VERSION can never wipe the
+     * door keys. This struct holds only the policy knobs.
+     */
+    bool     access_card_enabled;
+    bool     access_face_enabled;
+    uint16_t access_strike_ms;        /* how long the strike is held   */
+    uint8_t  access_max_failures;     /* 0 disables lockout            */
+    uint16_t access_lockout_s;
+    uint8_t  access_face_threshold;   /* 0..100 match confidence       */
+    bool     access_snapshot;         /* photograph every decision     */
+    bool     access_beep;
 
     /* ---- media ---- */
     uint16_t clip_seconds;            /* auto-record clip length       */

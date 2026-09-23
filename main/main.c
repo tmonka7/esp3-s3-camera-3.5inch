@@ -35,6 +35,7 @@
 #include "svc_modbus.h"
 #include "svc_notify.h"
 #include "svc_power.h"
+#include "svc_access.h"
 #include "svc_switch.h"
 #include "svc_temp.h"
 #include "svc_uart.h"
@@ -168,6 +169,7 @@ void app_main(void)
     step(80, "Opening serial port...",  start_uart);
     step(88, "Starting Modbus...",      svc_modbus_init);
     step(93, "Restoring switches...",   svc_switch_init);
+    step(95, "Starting access control...", svc_access_init);
     step(97, "Reading meters...",       start_climate);
 
     ui_splash_progress(100, "Ready");

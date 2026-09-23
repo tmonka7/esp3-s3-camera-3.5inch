@@ -92,6 +92,18 @@ static void load_defaults(app_settings_t *c)
     c->temp_reg_outdoor  = 102;
     c->temp_setpoint_c10 = 260;
 
+    /* Access control. The face path starts switched off: it needs a
+     * recogniser that is not built in yet, and a door lock should never come
+     * up enabled by default on a credential nobody has enrolled. */
+    c->access_card_enabled   = true;
+    c->access_face_enabled   = false;
+    c->access_strike_ms      = 5000;
+    c->access_max_failures   = 5;
+    c->access_lockout_s      = 30;
+    c->access_face_threshold = 80;
+    c->access_snapshot       = true;
+    c->access_beep           = true;
+
     c->clip_seconds       = 30;
     c->ring_delete_oldest = true;
     c->min_free_percent   = 10;

@@ -16,10 +16,14 @@ idf_component_register(
         "src/ui_playback.c"
         "src/ui_settings.c"
         "src/ui_datetime.c"
+        "src/ui_dialog.c"
+        "src/ui_access.c"
+        "src/ui_cards.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
     REQUIRES
         bsp app_core
         svc_uart svc_modbus svc_power svc_switch svc_temp svc_media svc_detect svc_notify
+        svc_access
         esp_app_format
 )

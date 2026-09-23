@@ -4,9 +4,10 @@ A touch control panel for the Waveshare ESP32-S3-Touch-LCD-3.5-C (320×480 ST779
 over SPI, FT6336 touch, OV5640 camera on the DVP port, TF card, 8 MB PSRAM /
 16 MB flash). Built against **ESP-IDF v5.3.5**.
 
-Thirteen screens: splash, dashboard, camera, UART console, Modbus master,
+Fifteen screens: splash, dashboard, camera, UART console, Modbus master,
 power control, ten room switches, temperature, person/object detection, TF
-card browser, video playback, settings and a date/time editor.
+card browser, video playback, settings, a date/time editor, door access and
+the credential list.
 
 **This project builds with no network access.** There are no
 `idf_component.yml` manifests, so the IDF component manager never runs and
@@ -34,6 +35,31 @@ first thing to look at.
 
 Confirmed camera pins: XCLK 38, PCLK 41, VSYNC 17, HREF 18, D0–D7 =
 45/47/48/46/42/40/39/21, SIOD 8, SIOC 7.
+
+### There are two spare GPIOs, and access control uses both
+
+The DVP camera takes 14 pins. After the LCD, touch, I²C, TF card and the two
+UARTs, what is left on an ESP32-S3-N16R8 — excluding 26–32 (flash), 33–37
+(octal PSRAM) and 22–25 (which do not exist) — is **GPIO 6 and GPIO 11**,
+plus GPIO 0 (the BOOT strap) and 19/20 if you give up USB.
+
+Access control spends exactly those two: **RC522 chip select on 6, door strike
+on 11**. There is no third pin for a door contact or an exit button. If you
+need one, the TCA9554 expander has spare bits, or a Modbus relay board has
+inputs.
+
+All three UARTs are also taken (console, RS485/Modbus, UART page), so a
+serial reader would cost you one of those pages.
+
+Two wiring points that are easy to get wrong:
+
+- **The RC522 needs MISO.** The LCD never reads, so a board may not break that
+  pin out even though it is assigned. Check before you solder.
+- **Fit a pull-down on the relay input.** GPIO 11 floats from reset until the
+  firmware configures it. Without a pull-down (or a pull-up, for an
+  active-low relay module, with `BSP_LOCK_ACTIVE_HIGH` unticked) the door can
+  unlock on every reboot. Firmware cannot close this window; only a resistor
+  can.
 
 ## Build
 
@@ -97,7 +123,8 @@ components/
   svc_media/             frame pump, snapshots, MJPEG-AVI record/play, browser
   svc_detect/            motion + blob detection, pluggable classifier
   svc_notify/            buzzer, CSV event log, HTTP webhook
-  ui/                    13 LVGL screens + shared theme and live-view widget
+  svc_access/            door policy: credentials, unlock decision, strike
+  ui/                    15 LVGL screens + shared theme and live-view widget
 ```
 
 ### How it fits together
@@ -126,8 +153,10 @@ and the pollers.
 | **Detection** | Live box overlay, event list, detection/notify toggles |
 | **Storage** | Recordings grouped by day, capacity bar |
 | **Playback** | AVI player with scrub, frame step, pause |
-| **Settings** | System, network, camera, detection, Modbus, about |
+| **Settings** | System, network, camera, detection, access, Modbus, about |
 | **Date & Time** | Six rollers, live clock readout, writes through to the RTC |
+| **Door Access** | Lock state, manual unlock, relock countdown, recent decisions |
+| **Credentials** | Enrolled cards: rename, disable, remove |
 
 Recordings are MJPEG in AVI, which plays in VLC and every desktop player
 without a codec pack, and whose `idx1` index makes on-device seeking cheap. A
@@ -159,6 +188,58 @@ installed in another.
 If no PCF85063 answers on the I2C bus the page says "no RTC" and the time has
 to be re-entered after every power cut.
 
+## Door access
+
+An MFRC522 on the LCD's SPI bus reads a card's UID; `svc_access` decides what
+that UID is worth and drives the strike for a configurable time before
+relocking itself. Credentials live in their own NVS namespace, deliberately
+separate from the settings blob, so bumping `APP_SETTINGS_VERSION` can never
+erase the door keys.
+
+Enrolment is from **Door Access → Add card**, which opens a 30-second window,
+closes on the first card read, and closes again if you leave the page. Every
+decision is appended to `/sdcard/access/YYYY-MM-DD.csv` and, by default,
+photographed — the photo is a fresh grab, so it shows whoever is standing
+there rather than the detector's last frame.
+
+Repeated denials trigger a lockout (five failures, 30 seconds, both
+configurable) so the reader cannot be worked through in a loop.
+
+### What this lock does not do
+
+It is configured so that **either** a card **or** a face opens the door, which
+makes the door as strong as the weaker of the two:
+
+- **A card UID is not a secret.** It is broadcast unauthenticated to anything
+  that asks, and a cloner copies it in seconds. The firmware reads the UID and
+  stops there — no MIFARE sector authentication, no DESFire. Anyone who can
+  hold a reader near a resident's card can make a working copy.
+- **Face recognition cannot tell a face from a photograph of one.** Nothing in
+  an RGB camera distinguishes them, and this board has no IR or depth sensor
+  to help. That is a hardware property, not a threshold to tune.
+- **The strike is driven from the panel's own GPIO.** If the panel is mounted
+  outside, prying it off the wall exposes the two wires that open the door,
+  and the electronics stop being relevant.
+
+Each of those has a fix if it matters later: DESFire cards with AES mutual
+authentication, requiring card *and* face together rather than either, and
+moving the relay to the secure side of the door as a Modbus coil (already
+supported by `svc_switch`). As configured, treat this as a convenience lock
+on an interior or low-risk door, not as security.
+
+The audit trail is the part that holds up regardless — it records what was
+presented and when, with a photo, whether or not the credential was genuine.
+
+### Face recognition is not built yet
+
+`svc_access_submit_face()` and the policy around it are in place — threshold,
+enable switch, credential kind, audit path — but nothing calls it. The
+recogniser needs `esp-dl`, which is not vendored, so wiring it up means
+fetching esp-dl and its models once on a networked machine and committing
+them alongside LVGL and esp32-camera. `svc_detect`'s existing backend hook is
+where the model gets gated on motion so it is not run on every frame. Until
+then the Face Entry row reads "unavailable" and cannot be switched on.
+
 ## Two things to know
 
 **Detection labels are a heuristic, not a model.** The pipeline compares each
@@ -183,3 +264,7 @@ addresses editable — but the shipped defaults will not match your meter.
 - The IMU (QMI8658) is probed and reported but not otherwise used.
 - OTA update; the partition table leaves room but no OTA path exists.
 - Screen lock: `pin_code` is stored in settings but nothing enforces it.
+- Face recognition: the policy and audit paths exist, the recogniser does not
+  (see "Face recognition is not built yet" above).
+- Card authentication: UID only, no MIFARE sector auth and no DESFire.
+- Door contact and exit button: no GPIOs left for them.

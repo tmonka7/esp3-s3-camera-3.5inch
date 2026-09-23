@@ -59,6 +59,18 @@ extern "C" {
 #define BSP_USE_IO_EXPANDER          0
 #endif
 
+#ifdef CONFIG_BSP_RC522_ENABLED
+#define BSP_RC522_ENABLED            1
+#else
+#define BSP_RC522_ENABLED            0
+#endif
+
+#ifdef CONFIG_BSP_LOCK_ACTIVE_HIGH
+#define BSP_LOCK_ACTIVE_HIGH         1
+#else
+#define BSP_LOCK_ACTIVE_HIGH         0
+#endif
+
 #ifdef CONFIG_BSP_SD_FORMAT_IF_MOUNT_FAILED
 #define BSP_SD_FORMAT_IF_MOUNT_FAILED 1
 #else
@@ -143,6 +155,34 @@ extern "C" {
 #define BSP_UART_PIN_RX            CONFIG_BSP_UART_PIN_RX
 
 #define BSP_BUZZER_PIN             CONFIG_BSP_BUZZER_PIN
+
+/* ---- access control --------------------------------------------------- *
+ *
+ * The RC522 options sit behind `depends on BSP_RC522_ENABLED`, so unticking
+ * the reader removes them from sdkconfig.h entirely rather than setting them
+ * to anything. Same trap as the bool options above, so they get the same
+ * treatment: a fallback that keeps the code compilable when the reader is
+ * off, with BSP_RC522_ENABLED as the only thing that decides whether it runs.
+ */
+#ifdef CONFIG_BSP_RC522_PIN_CS
+#define BSP_RC522_PIN_CS           CONFIG_BSP_RC522_PIN_CS
+#else
+#define BSP_RC522_PIN_CS           (-1)
+#endif
+
+#ifdef CONFIG_BSP_RC522_PIN_RST
+#define BSP_RC522_PIN_RST          CONFIG_BSP_RC522_PIN_RST
+#else
+#define BSP_RC522_PIN_RST          (-1)
+#endif
+
+#ifdef CONFIG_BSP_RC522_SPI_CLOCK_HZ
+#define BSP_RC522_SPI_CLOCK_HZ     CONFIG_BSP_RC522_SPI_CLOCK_HZ
+#else
+#define BSP_RC522_SPI_CLOCK_HZ     5000000
+#endif
+
+#define BSP_LOCK_PIN               CONFIG_BSP_LOCK_PIN
 
 /** Brings up the shared I2C bus and the IO expander. Safe to call twice. */
 esp_err_t bsp_board_init(void);

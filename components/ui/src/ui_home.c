@@ -28,6 +28,7 @@ static const nav_item_t k_nav[] = {
     { LV_SYMBOL_POWER,     "Switches",    UI_SCREEN_SWITCHES },
     { LV_SYMBOL_WARNING,   "Temperature", UI_SCREEN_TEMP     },
     { LV_SYMBOL_SD_CARD,   "Storage",     UI_SCREEN_STORAGE  },
+    { LV_SYMBOL_BELL,      "Door",        UI_SCREEN_ACCESS   },
     { LV_SYMBOL_SETTINGS,  "Settings",    UI_SCREEN_SETTINGS },
 };
 
@@ -35,7 +36,7 @@ static const nav_item_t k_tiles[] = {
     { LV_SYMBOL_IMAGE,    "Camera",   UI_SCREEN_CAMERA   },
     { LV_SYMBOL_CHARGE,   "Power",    UI_SCREEN_POWER    },
     { LV_SYMBOL_POWER,    "Switches", UI_SCREEN_SWITCHES },
-    { LV_SYMBOL_KEYBOARD, "UART",     UI_SCREEN_UART     },
+    { LV_SYMBOL_BELL,     "Door",     UI_SCREEN_ACCESS   },
     { LV_SYMBOL_LIST,     "Modbus",   UI_SCREEN_MODBUS   },
     { LV_SYMBOL_SD_CARD,  "Storage",  UI_SCREEN_STORAGE  },
 };
