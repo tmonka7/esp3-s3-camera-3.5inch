@@ -133,9 +133,14 @@ static void enroll_clicked(lv_event_t *e)
     if (svc_access_enroll_begin(ENROLL_WINDOW_S) == ESP_OK) {
         ui_toast("Present a card within %d s", ENROLL_WINDOW_S);
         paint_lock();
-    } else {
-        ui_toast("No reader detected");
+        return;
     }
+
+    /* No reader answered. Rather than a dead end, hand the user to the page
+     * that can still add a credential by typing the UID -- which is how you
+     * commission this before the RC522 is wired. */
+    ui_toast("No reader -- add the UID by hand");
+    ui_show(UI_SCREEN_CARDS);
 }
 
 static void cards_clicked(lv_event_t *e)

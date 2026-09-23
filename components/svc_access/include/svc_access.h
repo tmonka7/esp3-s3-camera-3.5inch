@@ -101,6 +101,17 @@ bool      svc_access_enrolling(void);
 
 size_t    svc_access_cred_count(void);
 esp_err_t svc_access_cred_get(size_t index, access_cred_t *out);
+
+/**
+ * Adds a card by UID without it being presented.
+ *
+ * For commissioning before the reader is wired, and for transcribing a UID
+ * that came from somewhere else. `uid_len` must be 4, 7 or 10; a duplicate
+ * returns ESP_ERR_INVALID_STATE rather than creating a second entry that
+ * would shadow the first.
+ */
+esp_err_t svc_access_cred_add_card(const uint8_t *uid, uint8_t uid_len,
+                                   const char *name);
 esp_err_t svc_access_cred_rename(size_t index, const char *name);
 esp_err_t svc_access_cred_set_enabled(size_t index, bool enabled);
 esp_err_t svc_access_cred_remove(size_t index);

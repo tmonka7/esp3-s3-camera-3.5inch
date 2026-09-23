@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "app_events.h"
 #include "svc_access.h"
 #include "ui_internal.h"
 
@@ -30,6 +31,83 @@ static void enabled_changed(lv_event_t *e)
         return;
     }
     ui_toast(on ? "Enabled" : "Disabled");
+}
+
+/* --------------------------------------------------------------------------
+ * Adding a credential
+ * ------------------------------------------------------------------------ */
+/**
+ * Accepts "04A2B31C", "04 A2 B3 1C" and "04:A2:B3:1C" alike, because a UID
+ * copied from another system arrives in all three forms. Everything that is
+ * not a hex digit is skipped.
+ */
+static bool parse_uid(const char *s, uint8_t *out, uint8_t *out_len)
+{
+    uint8_t nibbles[BSP_RFID_UID_MAX * 2];
+    size_t  n = 0;
+
+    for (; *s; s++) {
+        uint8_t v;
+        if (*s >= '0' && *s <= '9') {
+            v = (uint8_t)(*s - '0');
+        } else if (*s >= 'a' && *s <= 'f') {
+            v = (uint8_t)(*s - 'a' + 10);
+        } else if (*s >= 'A' && *s <= 'F') {
+            v = (uint8_t)(*s - 'A' + 10);
+        } else {
+            continue;
+        }
+        if (n >= sizeof(nibbles)) {
+            return false;
+        }
+        nibbles[n++] = v;
+    }
+
+    /* A UID is 4, 7 or 10 bytes -- anything else is a typo, and guessing at
+     * what was meant would silently enrol the wrong card. */
+    if (n != 8 && n != 14 && n != 20) {
+        return false;
+    }
+
+    for (size_t i = 0; i < n / 2; i++) {
+        out[i] = (uint8_t)((nibbles[i * 2] << 4) | nibbles[i * 2 + 1]);
+    }
+    *out_len = (uint8_t)(n / 2);
+    return true;
+}
+
+static void apply_manual_uid(const char *text)
+{
+    uint8_t uid[BSP_RFID_UID_MAX];
+    uint8_t len = 0;
+
+    if (!parse_uid(text, uid, &len)) {
+        ui_toast("Need 8, 14 or 20 hex digits");
+        return;
+    }
+
+    switch (svc_access_cred_add_card(uid, len, NULL)) {
+    case ESP_OK:                ui_toast("Card added");           break;
+    case ESP_ERR_INVALID_STATE: ui_toast("Already enrolled");      break;
+    case ESP_ERR_NO_MEM:        ui_toast("Credential list full");  break;
+    default:                    ui_toast("Could not add");         break;
+    }
+}
+
+static void manual_clicked(lv_event_t *e)
+{
+    (void)e;
+    ui_edit_text("Card UID in hex", "", false, apply_manual_uid, build_list);
+}
+
+static void scan_clicked(lv_event_t *e)
+{
+    (void)e;
+    if (svc_access_enroll_begin(30) == ESP_OK) {
+        ui_toast("Present a card within 30 s");
+    } else {
+        ui_toast("No reader detected -- use Enter UID");
+    }
 }
 
 static void apply_rename(const char *text)
@@ -160,9 +238,12 @@ static void build_list(void)
 
     const size_t n = svc_access_cred_count();
 
-    char summary[48];
-    snprintf(summary, sizeof(summary), "%u of %d slots used",
-             (unsigned)n, ACCESS_MAX_CREDENTIALS);
+    /* The face state is spelled out rather than left blank, because an absent
+     * feature and a broken one look identical when you are hunting for it. */
+    char summary[64];
+    snprintf(summary, sizeof(summary), "%u of %d slots  -  face: %s",
+             (unsigned)n, ACCESS_MAX_CREDENTIALS,
+             svc_access_face_available() ? "ready" : "not installed");
     lv_label_set_text(s_summary, summary);
 
     if (n == 0) {
@@ -198,24 +279,59 @@ static void create(lv_obj_t *parent)
     s_summary = ui_label(card, "", &lv_font_montserrat_12, UI_COL_MUTED);
     lv_obj_align(s_summary, LV_ALIGN_TOP_RIGHT, -12, 12);
 
+    /* Both ways of adding a card sit together: scanning is the normal one,
+     * typing the UID is what gets you through commissioning before the
+     * reader is wired -- or when it never will be. */
+    lv_obj_t *scan = ui_button(card, LV_SYMBOL_REFRESH " Scan card",
+                               scan_clicked, NULL);
+    lv_obj_set_size(scan, 150, 32);
+    lv_obj_align(scan, LV_ALIGN_TOP_LEFT, 0, 30);
+
+    lv_obj_t *manual = ui_button_soft(card, LV_SYMBOL_KEYBOARD " Enter UID",
+                                      manual_clicked, NULL);
+    lv_obj_set_size(manual, 150, 32);
+    lv_obj_align(manual, LV_ALIGN_TOP_LEFT, 158, 30);
+
     s_list = lv_obj_create(card);
     lv_obj_remove_style_all(s_list);
-    lv_obj_set_size(s_list, w - 24, h - 46);
+    lv_obj_set_size(s_list, w - 24, h - 84);
     lv_obj_align(s_list, LV_ALIGN_BOTTOM_MID, 0, -8);
     ui_flex_col(s_list, 0);
     lv_obj_set_style_pad_all(s_list, 0, 0);
 }
 
+/** A card scanned while this page is open should appear without a round trip. */
+static void on_access(void *arg, esp_event_base_t base, int32_t id, void *data)
+{
+    (void)arg; (void)base; (void)id;
+
+    const access_event_t *e = data;
+    if (!e || e->result != ACCESS_ENROLLED || !ui_lock()) {
+        return;
+    }
+    build_list();
+    ui_unlock();
+
+    ui_toast("Enrolled: %s", e->name);
+}
+
 static void on_enter(void)
 {
     build_list();
+    app_event_subscribe(APP_EVT_ACCESS, on_access, NULL);
 }
 
 static void on_leave(void)
 {
+    app_event_unsubscribe(APP_EVT_ACCESS, on_access);
+
     /* A confirmation left open would reappear over whatever screen comes
      * next, still holding the index it was opened with. */
     ui_dialog_close(NULL);
+
+    /* Same reasoning as the Door page: an enrolment window left open is how
+     * a stranger's card gets added. */
+    svc_access_enroll_cancel();
 }
 
 const ui_screen_def_t ui_screen_cards_def = {

@@ -197,7 +197,15 @@ separate from the settings blob, so bumping `APP_SETTINGS_VERSION` can never
 erase the door keys.
 
 Enrolment is from **Door Access → Add card**, which opens a 30-second window,
-closes on the first card read, and closes again if you leave the page. Every
+closes on the first card read, and closes again if you leave the page.
+
+The **Credentials** page (Door Access → Cards, or Settings → Access →
+Credentials) has both routes: **Scan card** does the same thing, and **Enter
+UID** types one in as hex — accepting `04A2B31C`, `04 A2 B3 1C` and
+`04:A2:B3:1C` alike. Typing it is how you commission the door before the
+RC522 is wired, and the only route at all if the reader never answers.
+
+Every
 decision is appended to `/sdcard/access/YYYY-MM-DD.csv` and, by default,
 photographed — the photo is a fresh grab, so it shows whoever is standing
 there rather than the detector's last frame.

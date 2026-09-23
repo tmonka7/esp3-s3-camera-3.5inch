@@ -266,6 +266,34 @@ static int find_face(uint16_t face_id)
     return -1;
 }
 
+/**
+ * Caller holds s_lock and has already checked there is room.
+ *
+ * `name` NULL auto-names it "Card N". Returns the new record so the caller
+ * can report what it ended up called.
+ */
+static const access_cred_t *store_append_card(const uint8_t *uid, uint8_t uid_len,
+                                              const char *name)
+{
+    access_cred_t *c = &s_store.creds[s_store.count];
+    memset(c, 0, sizeof(*c));
+
+    c->kind    = ACCESS_CRED_CARD;
+    c->uid_len = uid_len;
+    memcpy(c->uid, uid, uid_len);
+
+    if (name && name[0]) {
+        strlcpy(c->name, name, sizeof(c->name));
+    } else {
+        snprintf(c->name, sizeof(c->name), "Card %u", (unsigned)(s_store.count + 1));
+    }
+
+    c->enabled     = true;
+    c->added_epoch = (uint32_t)time(NULL);
+    s_store.count++;
+    return c;
+}
+
 /** Caller holds s_lock. Records a successful use against the credential. */
 static void mark_used(int index)
 {
@@ -340,17 +368,7 @@ static void handle_card(const bsp_rfid_uid_t *uid)
             e.result = ACCESS_DENIED_UNKNOWN;
             ESP_LOGW(TAG, "credential list is full");
         } else {
-            access_cred_t *c = &s_store.creds[s_store.count];
-            memset(c, 0, sizeof(*c));
-            c->kind    = ACCESS_CRED_CARD;
-            c->uid_len = uid->len;
-            memcpy(c->uid, uid->bytes, uid->len);
-            snprintf(c->name, sizeof(c->name), "Card %u",
-                     (unsigned)(s_store.count + 1));
-            c->enabled     = true;
-            c->added_epoch = (uint32_t)time(NULL);
-            s_store.count++;
-
+            const access_cred_t *c = store_append_card(uid->bytes, uid->len, NULL);
             e.result = ACCESS_ENROLLED;
             strlcpy(e.name, c->name, sizeof(e.name));
             save = true;
@@ -585,6 +603,37 @@ esp_err_t svc_access_cred_get(size_t index, access_cred_t *out)
         *out = s_store.creds[index];
         err  = ESP_OK;
     }
+    xSemaphoreGive(s_lock);
+    return err;
+}
+
+esp_err_t svc_access_cred_add_card(const uint8_t *uid, uint8_t uid_len,
+                                   const char *name)
+{
+    ESP_RETURN_ON_FALSE(uid, ESP_ERR_INVALID_ARG, TAG, "uid");
+    ESP_RETURN_ON_FALSE(uid_len == 4 || uid_len == 7 || uid_len == 10,
+                        ESP_ERR_INVALID_SIZE, TAG, "uid length %u",
+                        (unsigned)uid_len);
+
+    if (xSemaphoreTake(s_lock, pdMS_TO_TICKS(500)) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    esp_err_t err;
+    bsp_rfid_uid_t probe = { .len = uid_len };
+    memcpy(probe.bytes, uid, uid_len);
+
+    if (find_card(&probe) >= 0) {
+        /* Two entries for one card would mean the second could never be
+         * reached, and disabling the visible one would not lock the card out. */
+        err = ESP_ERR_INVALID_STATE;
+    } else if (s_store.count >= ACCESS_MAX_CREDENTIALS) {
+        err = ESP_ERR_NO_MEM;
+    } else {
+        store_append_card(uid, uid_len, name);
+        err = store_save();
+    }
+
     xSemaphoreGive(s_lock);
     return err;
 }
