@@ -14,6 +14,57 @@
 extern "C" {
 #endif
 
+/* ---- Kconfig booleans -------------------------------------------------- *
+ *
+ * A `bool` Kconfig option is #defined as 1 when set and is NOT DEFINED AT ALL
+ * when cleared. That is fine inside #if, where an unknown identifier is 0,
+ * but it is a compile error anywhere it appears in ordinary C -- which is how
+ * these are used (struct initialisers, function arguments). Normalising them
+ * once here means the rest of the firmware can treat them as plain 0/1, and
+ * that unticking one in menuconfig can never break the build.
+ */
+#ifdef CONFIG_BSP_PINS_VERIFIED
+#define BSP_PINS_VERIFIED            1
+#else
+#define BSP_PINS_VERIFIED            0
+#endif
+
+#ifdef CONFIG_BSP_LCD_SWAP_XY
+#define BSP_LCD_SWAP_XY              1
+#else
+#define BSP_LCD_SWAP_XY              0
+#endif
+
+#ifdef CONFIG_BSP_LCD_MIRROR_X
+#define BSP_LCD_MIRROR_X             1
+#else
+#define BSP_LCD_MIRROR_X             0
+#endif
+
+#ifdef CONFIG_BSP_LCD_MIRROR_Y
+#define BSP_LCD_MIRROR_Y             1
+#else
+#define BSP_LCD_MIRROR_Y             0
+#endif
+
+#ifdef CONFIG_BSP_LCD_BGR_ELEMENT_ORDER
+#define BSP_LCD_BGR_ELEMENT_ORDER    1
+#else
+#define BSP_LCD_BGR_ELEMENT_ORDER    0
+#endif
+
+#ifdef CONFIG_BSP_USE_IO_EXPANDER
+#define BSP_USE_IO_EXPANDER          1
+#else
+#define BSP_USE_IO_EXPANDER          0
+#endif
+
+#ifdef CONFIG_BSP_SD_FORMAT_IF_MOUNT_FAILED
+#define BSP_SD_FORMAT_IF_MOUNT_FAILED 1
+#else
+#define BSP_SD_FORMAT_IF_MOUNT_FAILED 0
+#endif
+
 /* ---- display ---------------------------------------------------------- */
 #define BSP_LCD_H_RES              CONFIG_BSP_LCD_H_RES
 #define BSP_LCD_V_RES              CONFIG_BSP_LCD_V_RES
@@ -31,7 +82,7 @@ extern "C" {
 
 /* The panel is a 320x480 portrait glass; the UI is designed landscape, so the
  * effective canvas is 480x320 once swap_xy is applied. */
-#if CONFIG_BSP_LCD_SWAP_XY
+#if BSP_LCD_SWAP_XY
 #define BSP_UI_H_RES               BSP_LCD_V_RES
 #define BSP_UI_V_RES               BSP_LCD_H_RES
 #else

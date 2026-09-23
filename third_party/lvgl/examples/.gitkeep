@@ -1,0 +1,8 @@
+Intentionally empty.
+
+LVGL's env_support/cmake/esp.cmake lists this directory in INCLUDE_DIRS
+unconditionally, so idf_component_register() fails if it is missing -- but the
+sources inside are only compiled when CONFIG_LV_BUILD_EXAMPLES or one of the
+CONFIG_LV_USE_DEMO_* options is enabled, and this firmware enables none of
+them. The contents were dropped to keep the vendored tree small (they are
+~68 MB); the directory itself has to stay.

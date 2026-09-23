@@ -37,7 +37,7 @@ esp_err_t bsp_board_init(void)
         return ESP_OK;
     }
 
-#if !CONFIG_BSP_PINS_VERIFIED
+#if !BSP_PINS_VERIFIED
     ESP_LOGW(TAG, "================================================================");
     ESP_LOGW(TAG, " Board pins have NOT been confirmed against your schematic.");
     ESP_LOGW(TAG, " The camera DVP pins come from the Waveshare wiki and are good;");

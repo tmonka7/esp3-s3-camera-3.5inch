@@ -37,7 +37,7 @@ esp_err_t bsp_storage_mount(void)
     slot.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 
     const esp_vfs_fat_sdmmc_mount_config_t mount_cfg = {
-        .format_if_mount_failed = CONFIG_BSP_SD_FORMAT_IF_MOUNT_FAILED,
+        .format_if_mount_failed = BSP_SD_FORMAT_IF_MOUNT_FAILED,
         .max_files              = 8,
         .allocation_unit_size   = 32 * 1024,
     };

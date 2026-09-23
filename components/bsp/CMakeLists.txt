@@ -6,6 +6,9 @@ idf_component_register(
         "src/bsp_display.c"
         "src/bsp_camera.c"
         "src/bsp_storage.c"
+        "src/lcd_st7796.c"
+        "src/touch_ft6336.c"
+        "src/lvgl_port.c"
     INCLUDE_DIRS
         "include"
     REQUIRES
@@ -16,6 +19,8 @@ idf_component_register(
         spiffs
         sdmmc
         esp_driver_sdmmc
+        lvgl
+        esp32-camera
     PRIV_REQUIRES
         esp_psram
 )

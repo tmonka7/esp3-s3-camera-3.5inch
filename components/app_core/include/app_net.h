@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 /**
- * Wi-Fi station. Optional: Modbus-TCP, SNTP and webhook notifications need
+ * Wi-Fi station. Optional: Modbus-TCP and webhook notifications need
  * it, but the panel is fully usable on RS485 alone with Wi-Fi switched off.
  */
 esp_err_t app_net_init(void);

@@ -92,7 +92,7 @@ CONFIG_LV_FONT_MONTSERRAT_48=y
 CONFIG_LV_USE_PERF_MONITOR=n
 
 # ---------------------------------------------------------------------------
-# Networking (Modbus-TCP, SNTP clock, webhook notifications)
+# Networking (Modbus-TCP, webhook notifications). The clock is set by hand.
 # ---------------------------------------------------------------------------
 CONFIG_LWIP_SO_RCVBUF=y
 CONFIG_LWIP_MAX_SOCKETS=16

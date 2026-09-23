@@ -38,7 +38,7 @@ static uint8_t used_bits_mask(void)
 
 esp_err_t bsp_io_expander_init(void)
 {
-#if !CONFIG_BSP_USE_IO_EXPANDER
+#if !BSP_USE_IO_EXPANDER
     ESP_LOGI(TAG, "IO expander disabled in Kconfig");
     return ESP_OK;
 #else

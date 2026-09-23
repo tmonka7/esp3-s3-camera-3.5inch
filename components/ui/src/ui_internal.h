@@ -21,6 +21,7 @@ extern const ui_screen_def_t ui_screen_detect_def;
 extern const ui_screen_def_t ui_screen_storage_def;
 extern const ui_screen_def_t ui_screen_playback_def;
 extern const ui_screen_def_t ui_screen_settings_def;
+extern const ui_screen_def_t ui_screen_datetime_def;
 
 /**
  * The right-hand slot of the standard header, where screens park their

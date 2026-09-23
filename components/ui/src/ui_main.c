@@ -260,6 +260,7 @@ esp_err_t ui_init(void)
     s_defs[UI_SCREEN_STORAGE]  = &ui_screen_storage_def;
     s_defs[UI_SCREEN_PLAYBACK] = &ui_screen_playback_def;
     s_defs[UI_SCREEN_SETTINGS] = &ui_screen_settings_def;
+    s_defs[UI_SCREEN_DATETIME] = &ui_screen_datetime_def;
 
     if (!ui_lock()) {
         return ESP_ERR_TIMEOUT;

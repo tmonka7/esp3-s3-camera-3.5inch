@@ -64,7 +64,7 @@ typedef struct {
     uint8_t        brightness;        /* 0..100                        */
     uint16_t       auto_sleep_min;    /* 0 = never                     */
     char           timezone[40];      /* POSIX TZ, e.g. "KST-9"        */
-    char           ntp_server[48];
+    char           ntp_server[48];   /* unused: the clock is set by hand */
     char           pin_code[9];       /* empty = screen lock disabled  */
 
     /* ---- network ---- */

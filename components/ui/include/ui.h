@@ -21,6 +21,7 @@ typedef enum {
     UI_SCREEN_STORAGE,
     UI_SCREEN_PLAYBACK,
     UI_SCREEN_SETTINGS,
+    UI_SCREEN_DATETIME,
     UI_SCREEN_COUNT,
 } ui_screen_id_t;
 

@@ -201,42 +201,12 @@ static void apply_webhook(const char *t)
     app_settings_commit();
 }
 
-static void apply_datetime_text(const char *text)
-{
-    struct tm tm_utc = {0};
-    int year = 0, mon = 0, day = 0, hour = 0, min = 0;
-    if (sscanf(text, "%d-%d-%d %d:%d", &year, &mon, &day, &hour, &min) != 5) {
-        ui_toast("Use YYYY-MM-DD HH:MM");
-        return;
-    }
-
-    if (year < 2020 || mon < 1 || mon > 12 || day < 1 || day > 31 ||
-        hour < 0 || hour > 23 || min < 0 || min > 59) {
-        ui_toast("Invalid date/time");
-        return;
-    }
-
-    tm_utc.tm_year = year - 1900;
-    tm_utc.tm_mon  = mon - 1;
-    tm_utc.tm_mday = day;
-    tm_utc.tm_hour = hour;
-    tm_utc.tm_min  = min;
-    tm_utc.tm_sec  = 0;
-    tm_utc.tm_isdst = -1;
-
-    if (app_time_set(&tm_utc) == ESP_OK) {
-        ui_toast("Clock updated");
-    } else {
-        ui_toast("Failed to set clock");
-    }
-}
-
+/* The clock gets its own page: six rollers beat typing a timestamp into a
+ * text field, and the page can show the live clock while you set it. */
 static void row_datetime(lv_event_t *e)
 {
     (void)e;
-    char current[32];
-    app_time_format(current, sizeof(current), "%Y-%m-%d %H:%M");
-    edit_text("Manual date & time (UTC, YYYY-MM-DD HH:MM)", current, false, apply_datetime_text);
+    ui_show(UI_SCREEN_DATETIME);
 }
 
 static void apply_quality(int v)

@@ -15,6 +15,7 @@ idf_component_register(
         "src/ui_storage.c"
         "src/ui_playback.c"
         "src/ui_settings.c"
+        "src/ui_datetime.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
     REQUIRES
