@@ -140,21 +140,25 @@ esp_err_t svc_notify_init(void)
         return ESP_OK;
     }
 
-    if (BSP_BUZZER_PIN >= 0) {
-        const gpio_num_t pin = (gpio_num_t)BSP_BUZZER_PIN;
-        if (pin >= GPIO_NUM_0 && pin <= GPIO_NUM_31) {
-            const uint64_t mask = ((uint64_t)1u) << (uint32_t)pin;
-            const gpio_config_t io = {
-                .pin_bit_mask = mask,
-                .mode         = GPIO_MODE_OUTPUT,
-                .pull_up_en   = GPIO_PULLUP_DISABLE,
-                .pull_down_en = GPIO_PULLDOWN_DISABLE,
-                .intr_type    = GPIO_INTR_DISABLE,
-            };
-            if (gpio_config(&io) == ESP_OK) {
-                gpio_set_level(pin, 0);
-                s_buzzer_ready = true;
-            }
+    /* BSP_BUZZER_PIN is a compile-time constant, so the compiler folds this
+     * block even when the guard is false -- and with the pin left at -1 the
+     * cast produced a shift count of 2^32-1, i.e. a -Wshift-count-overflow
+     * error on a branch that can never run. Masking the count to 0..63 keeps
+     * the folded constant legal; the guard still decides whether the pin is
+     * actually used. */
+    const int buzzer_pin = BSP_BUZZER_PIN;
+    if (buzzer_pin >= GPIO_NUM_0 && buzzer_pin <= GPIO_NUM_31) {
+        const gpio_num_t    pin = (gpio_num_t)buzzer_pin;
+        const gpio_config_t io  = {
+            .pin_bit_mask = 1ULL << (buzzer_pin & 0x3F),
+            .mode         = GPIO_MODE_OUTPUT,
+            .pull_up_en   = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type    = GPIO_INTR_DISABLE,
+        };
+        if (gpio_config(&io) == ESP_OK) {
+            gpio_set_level(pin, 0);
+            s_buzzer_ready = true;
         }
     }
 

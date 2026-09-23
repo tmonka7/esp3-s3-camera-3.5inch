@@ -271,7 +271,7 @@ esp_err_t lcd_new_panel_st7796(esp_lcd_panel_io_handle_t io,
     default:
         free(p);
         ESP_RETURN_ON_FALSE(false, ESP_ERR_NOT_SUPPORTED, TAG,
-                            "%d bpp is not supported", panel_dev->bits_per_pixel);
+                            "%d bpp is not supported", (int)panel_dev->bits_per_pixel);
     }
 
     p->io             = io;
