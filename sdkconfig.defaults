@@ -4,6 +4,23 @@
 CONFIG_IDF_TARGET="esp32s3"
 CONFIG_IDF_EXPERIMENTAL_FEATURES=y
 
+# GCC has a known ICE in esp_lcd_panel_rgb.c when built with the debug profile
+# (-Og). Use a non-debug optimization level to keep the downstream RGB panel
+# driver compiling reliably on ESP-IDF v5.3.x.
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+# CONFIG_COMPILER_OPTIMIZATION_DEBUG is not set
+# CONFIG_COMPILER_OPTIMIZATION_PERF is not set
+# CONFIG_COMPILER_OPTIMIZATION_NONE is not set
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_ENABLE=y
+# CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_SILENT is not set
+# CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE is not set
+CONFIG_COMPILER_OPTIMIZATION_ASSERTION_LEVEL=2
+# CONFIG_COMPILER_CXX_EXCEPTIONS is not set
+CONFIG_OPTIMIZATION_LEVEL_RELEASE=y
+# CONFIG_OPTIMIZATION_LEVEL_DEBUG is not set
+# CONFIG_COMPILER_OPTIMIZATION_LEVEL_DEBUG is not set
+# CONFIG_COMPILER_OPTIMIZATION_LEVEL_RELEASE is not set
+
 # ---------------------------------------------------------------------------
 # Flash: 16 MB, QIO @ 80 MHz  (W25Q128JVSIQ)
 # ---------------------------------------------------------------------------

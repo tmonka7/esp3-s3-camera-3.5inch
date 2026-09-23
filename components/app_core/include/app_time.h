@@ -9,9 +9,9 @@ extern "C" {
 #endif
 
 /**
- * Restores the system clock from the on-board PCF85063 so timestamps are
- * sane before (or without) a network, applies the configured timezone, and
- * starts SNTP when Wi-Fi is enabled.
+ * Restores the system clock from the on-board PCF85063 if available,
+ * applies the configured timezone, and leaves time sync as a manual task
+ * so the unit works fully offline.
  */
 esp_err_t app_time_init(void);
 

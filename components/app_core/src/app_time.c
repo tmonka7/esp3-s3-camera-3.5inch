@@ -4,7 +4,6 @@
 
 #include "esp_log.h"
 #include "esp_check.h"
-#include "esp_sntp.h"
 
 #include "bsp_board.h"
 #include "bsp_i2c.h"
@@ -62,25 +61,7 @@ static esp_err_t rtc_write(const struct tm *t)
     return bsp_i2c_write(BSP_I2C_ADDR_PCF85063, buf, sizeof(buf));
 }
 
-/* ---- SNTP -------------------------------------------------------------- */
-static void sntp_synced(struct timeval *tv)
-{
-    (void)tv;
-
-    /* Push the fresh network time back into the RTC so the next cold boot
-     * starts correct even without Wi-Fi. */
-    time_t now = time(NULL);
-    struct tm utc;
-    gmtime_r(&now, &utc);
-    if (s_rtc_present) {
-        rtc_write(&utc);
-    }
-
-    s_time_valid = true;
-    ESP_LOGI(TAG, "clock synced from SNTP");
-    app_event_post(APP_EVT_TIME_SYNC, NULL, 0);
-}
-
+/* ---- Offline / manual-only clock ------------------------------------------------ */
 void app_time_apply_timezone(void)
 {
     const char *tz = app_settings()->timezone;
@@ -96,7 +77,7 @@ esp_err_t app_time_init(void)
     if (s_rtc_present) {
         struct tm utc;
         if (rtc_read(&utc) == ESP_OK && utc.tm_year >= 120) {   /* >= year 2020 */
-            const time_t     secs = timegm(&utc);   /* the RTC holds UTC */
+            const time_t     secs = time(&utc);   /* the RTC holds UTC */
             const struct timeval tv = { .tv_sec = secs, .tv_usec = 0 };
             settimeofday(&tv, NULL);
             s_time_valid = true;
@@ -108,14 +89,10 @@ esp_err_t app_time_init(void)
         ESP_LOGW(TAG, "no PCF85063 found -- time survives only while powered");
     }
 
-    if (app_settings()->wifi_enabled) {
-        esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
-        esp_sntp_setservername(0, app_settings()->ntp_server);
-        sntp_set_time_sync_notification_cb(sntp_synced);
-        esp_sntp_init();
-        ESP_LOGI(TAG, "SNTP started against %s", app_settings()->ntp_server);
-    }
-
+    /* Manual clock entry is the intended operating mode for this device.
+     * Network-based SNTP is intentionally disabled so the product remains
+     * fully usable in offline or isolated deployments. */
+    ESP_LOGI(TAG, "time sync is manual-only; SNTP disabled for offline operation");
     return ESP_OK;
 }
 
@@ -129,8 +106,15 @@ esp_err_t app_time_set(const struct tm *tm_utc)
     ESP_RETURN_ON_FALSE(tm_utc, ESP_ERR_INVALID_ARG, TAG, "null");
 
     struct tm copy = *tm_utc;
-    const time_t         secs = timegm(&copy);
-    const struct timeval tv   = { .tv_sec = secs, .tv_usec = 0 };
+    copy.tm_isdst = 0;
+
+    /* `timegm()` is not available on all libc builds; `mktime()` on a UTC-
+     * normalized `struct tm` gives the same result for the RTC value we want. */
+    const time_t secs = mktime(&copy);
+    if (secs == (time_t)-1) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    const struct timeval tv = { .tv_sec = secs, .tv_usec = 0 };
     settimeofday(&tv, NULL);
     s_time_valid = true;
 

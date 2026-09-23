@@ -201,6 +201,44 @@ static void apply_webhook(const char *t)
     app_settings_commit();
 }
 
+static void apply_datetime_text(const char *text)
+{
+    struct tm tm_utc = {0};
+    int year = 0, mon = 0, day = 0, hour = 0, min = 0;
+    if (sscanf(text, "%d-%d-%d %d:%d", &year, &mon, &day, &hour, &min) != 5) {
+        ui_toast("Use YYYY-MM-DD HH:MM");
+        return;
+    }
+
+    if (year < 2020 || mon < 1 || mon > 12 || day < 1 || day > 31 ||
+        hour < 0 || hour > 23 || min < 0 || min > 59) {
+        ui_toast("Invalid date/time");
+        return;
+    }
+
+    tm_utc.tm_year = year - 1900;
+    tm_utc.tm_mon  = mon - 1;
+    tm_utc.tm_mday = day;
+    tm_utc.tm_hour = hour;
+    tm_utc.tm_min  = min;
+    tm_utc.tm_sec  = 0;
+    tm_utc.tm_isdst = -1;
+
+    if (app_time_set(&tm_utc) == ESP_OK) {
+        ui_toast("Clock updated");
+    } else {
+        ui_toast("Failed to set clock");
+    }
+}
+
+static void row_datetime(lv_event_t *e)
+{
+    (void)e;
+    char current[32];
+    app_time_format(current, sizeof(current), "%Y-%m-%d %H:%M");
+    edit_text("Manual date & time (UTC, YYYY-MM-DD HH:MM)", current, false, apply_datetime_text);
+}
+
 static void apply_quality(int v)
 {
     app_settings()->cam_quality = (uint8_t)v;
@@ -456,7 +494,7 @@ static void build_system(lv_obj_t *p)
     ui_list_row(p, "Auto Sleep", buf, row_sleep, NULL);
 
     app_time_format(buf, sizeof(buf), "%Y-%m-%d %H:%M");
-    ui_list_row(p, "Date & Time", buf, NULL, NULL);
+    ui_list_row(p, "Date & Time", buf, row_datetime, NULL);
 
     ui_list_row(p, "Time Zone", cfg->timezone, row_timezone, NULL);
     ui_list_row(p, "Reboot", "Restart", row_reboot, NULL);
