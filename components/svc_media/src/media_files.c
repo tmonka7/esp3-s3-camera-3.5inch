@@ -69,8 +69,17 @@ static size_t scan_dir(const char *dir, media_kind_t want,
             continue;
         }
 
-        char path[192];
-        snprintf(path, sizeof(path), "%s/%s", dir, e->d_name);
+        char path[256];
+        size_t used_dir = strlcpy(path, dir, sizeof(path));
+        if (used_dir >= sizeof(path)) {
+            continue;
+        }
+        if (strlcat(path, "/", sizeof(path)) >= sizeof(path)) {
+            continue;
+        }
+        if (strlcat(path, e->d_name, sizeof(path)) >= sizeof(path)) {
+            continue;
+        }
 
         struct stat st;
         if (stat(path, &st) != 0 || !S_ISREG(st.st_mode)) {
@@ -161,7 +170,25 @@ void media_files_path(const media_entry_t *e, char *out, size_t out_len)
     if (!e || !out || out_len == 0) {
         return;
     }
-    snprintf(out, out_len, "%s/%s", dir_for(e->kind), e->name);
+
+    const char *dir = dir_for(e->kind);
+    if (!dir) {
+        out[0] = '\0';
+        return;
+    }
+
+    size_t used = strlcpy(out, dir, out_len);
+    if (used >= out_len) {
+        out[out_len - 1] = '\0';
+        return;
+    }
+    if (strlcat(out, "/", out_len) >= out_len) {
+        out[out_len - 1] = '\0';
+        return;
+    }
+    if (strlcat(out, e->name, out_len) >= out_len) {
+        out[out_len - 1] = '\0';
+    }
 }
 
 esp_err_t media_files_delete(const media_entry_t *e)

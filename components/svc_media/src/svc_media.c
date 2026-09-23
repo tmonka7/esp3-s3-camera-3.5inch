@@ -317,8 +317,20 @@ static bool oldest_file(const char *dir, char *out, size_t out_len, time_t *out_
             continue;
         }
 
-        char path[160];
-        snprintf(path, sizeof(path), "%s/%s", dir, e->d_name);
+        char path[256];
+        size_t used = strlcpy(path, dir, sizeof(path));
+        if (used >= sizeof(path)) {
+            ESP_LOGW(TAG, "directory path too long while scanning %s", dir);
+            continue;
+        }
+        if (strlcat(path, "/", sizeof(path)) >= sizeof(path)) {
+            ESP_LOGW(TAG, "path too long while scanning %s", dir);
+            continue;
+        }
+        if (strlcat(path, e->d_name, sizeof(path)) >= sizeof(path)) {
+            ESP_LOGW(TAG, "filename too long while scanning %s: %s", dir, e->d_name);
+            continue;
+        }
 
         struct stat st;
         if (stat(path, &st) != 0 || !S_ISREG(st.st_mode)) {
