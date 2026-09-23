@@ -78,7 +78,7 @@ lv_obj_t *ui_dialog_shell(const char *title, lv_coord_t height)
     lv_obj_align(panel, LV_ALIGN_TOP_MID, 0, 16);
     ui_flex_col(panel, 8);
 
-    ui_label(panel, title, &lv_font_montserrat_14, UI_COL_TEXT);
+    ui_label(panel, title, UI_FONT_14, UI_COL_TEXT);
     return panel;
 }
 
@@ -89,8 +89,8 @@ static void add_buttons(lv_obj_t *panel)
     lv_obj_remove_style_all(row);
     lv_obj_set_size(row, LV_PCT(100), 34);
     ui_flex_row(row, UI_PAD);
-    lv_obj_set_width(ui_button_soft(row, "Cancel", ui_dialog_close, NULL), 110);
-    lv_obj_set_width(ui_button(row,      "Save",   dialog_ok,       NULL), 110);
+    lv_obj_set_width(ui_button_soft(row, UI_T(CANCEL), ui_dialog_close, NULL), 110);
+    lv_obj_set_width(ui_button(row,      UI_T(SAVE),   dialog_ok,       NULL), 110);
 }
 
 void ui_edit_number(const char *title, int min, int max, int current,

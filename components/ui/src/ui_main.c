@@ -63,7 +63,7 @@ static void back_clicked(lv_event_t *e)
 }
 
 /** Builds the header and returns the content container below it. */
-static lv_obj_t *build_chrome(lv_obj_t *scr, ui_screen_id_t id, const char *title)
+static lv_obj_t *build_chrome(lv_obj_t *scr, ui_screen_id_t id, ui_str_t title)
 {
     lv_obj_t *header = lv_obj_create(scr);
     lv_obj_remove_style_all(header);
@@ -79,10 +79,10 @@ static lv_obj_t *build_chrome(lv_obj_t *scr, ui_screen_id_t id, const char *titl
     lv_obj_align(back, LV_ALIGN_LEFT_MID, 0, 0);
     lv_obj_add_event_cb(back, back_clicked, LV_EVENT_CLICKED, NULL);
 
-    lv_obj_t *arrow = ui_label(back, LV_SYMBOL_LEFT, &lv_font_montserrat_16, UI_COL_TEXT);
+    lv_obj_t *arrow = ui_label(back, LV_SYMBOL_LEFT, UI_FONT_16, UI_COL_TEXT);
     lv_obj_center(arrow);
 
-    lv_obj_t *lbl = ui_label(header, title, &lv_font_montserrat_16, UI_COL_TEXT);
+    lv_obj_t *lbl = ui_label(header, ui_tr(title), UI_FONT_16, UI_COL_TEXT);
     lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 42, 0);
 
     /* Right-hand slot: screens drop a status pill in here. */
@@ -132,7 +132,7 @@ static lv_obj_t *ensure_screen(ui_screen_id_t id)
     def->create(target);
 
     s_slots[id].screen = scr;
-    ESP_LOGD(TAG, "built screen %d (%s)", (int)id, def->title);
+    ESP_LOGD(TAG, "built screen %d (%s)", (int)id, ui_tr(def->title));
     return scr;
 }
 
@@ -234,7 +234,7 @@ void ui_toast(const char *fmt, ...)
     lv_obj_clear_flag(s_toast, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(s_toast, LV_OBJ_FLAG_IGNORE_LAYOUT);
 
-    lv_obj_t *lbl = ui_label(s_toast, text, &lv_font_montserrat_14, lv_color_white());
+    lv_obj_t *lbl = ui_label(s_toast, text, UI_FONT_14, lv_color_white());
     lv_obj_center(lbl);
 
     s_toast_timer = lv_timer_create(toast_expire, 2200, NULL);
@@ -265,6 +265,10 @@ esp_err_t ui_init(void)
     s_defs[UI_SCREEN_CARDS]    = &ui_screen_cards_def;
     s_defs[UI_SCREEN_FACES]    = &ui_screen_faces_def;
     s_defs[UI_SCREEN_WEBCAM]   = &ui_screen_webcam_def;
+
+    /* Before anything is built: the language decides which font every
+     * widget below is going to ask for. */
+    ui_i18n_init();
 
     if (!ui_lock()) {
         return ESP_ERR_TIMEOUT;

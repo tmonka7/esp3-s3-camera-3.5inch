@@ -53,7 +53,7 @@ static uint16_t format_index(const app_settings_t *cfg)
 
 static void update_link_ui(bool open)
 {
-    ui_pill_set(s_pill, open ? "Connected" : "Closed",
+    ui_pill_set(s_pill, open ? UI_T(UART_CONNECTED) : UI_T(UART_CLOSED),
                 open ? UI_COL_PRIMARY : UI_COL_MUTED);
 
     /* Only one of the two is ever the sensible action. */
@@ -74,9 +74,9 @@ static void do_open(lv_event_t *e)
     app_settings_commit_deferred();
 
     if (svc_uart_open(NULL) == ESP_OK) {
-        ui_toast("UART%d open at %lu baud", BSP_UART_NUM, (unsigned long)cfg->uart_baud);
+        ui_toast(UI_T(UART_OPEN_FMT), BSP_UART_NUM, (unsigned long)cfg->uart_baud);
     } else {
-        ui_toast("Could not open the port");
+        ui_toast("%s", UI_T(UART_OPEN_FAIL));
     }
 }
 
@@ -84,7 +84,7 @@ static void do_close(lv_event_t *e)
 {
     (void)e;
     svc_uart_close();
-    ui_toast("Port closed");
+    ui_toast("%s", UI_T(UART_PORT_CLOSED));
 }
 
 /* --------------------------------------------------------------------------
@@ -154,9 +154,9 @@ static void do_save(lv_event_t *e)
     char path[96];
     if (svc_uart_save_log(path, sizeof(path)) == ESP_OK) {
         const char *name = strrchr(path, '/');
-        ui_toast("Saved %s", name ? name + 1 : path);
+        ui_toast(UI_T(UART_SAVED_FMT), name ? name + 1 : path);
     } else {
-        ui_toast("Save failed - check the TF card");
+        ui_toast("%s", UI_T(UART_SAVE_FAIL));
     }
 }
 
@@ -193,7 +193,7 @@ static void dialog_send(lv_event_t *e)
     }
 
     if (err != ESP_OK) {
-        ui_toast("Send failed - is the port open?");
+        ui_toast("%s", UI_T(UART_SEND_FAIL));
     }
     dialog_close(NULL);
 }
@@ -203,7 +203,7 @@ static void do_send(lv_event_t *e)
     (void)e;
 
     if (!svc_uart_is_open()) {
-        ui_toast("Open the port first");
+        ui_toast("%s", UI_T(UART_OPEN_FIRST));
         return;
     }
 
@@ -217,8 +217,8 @@ static void do_send(lv_event_t *e)
     lv_obj_t *panel = ui_card(s_dialog, ui_width() - 40, 120);
     lv_obj_align(panel, LV_ALIGN_TOP_MID, 0, 14);
 
-    ui_label(panel, app_settings()->uart_hex_view ? "Send (hex bytes)" : "Send (text)",
-             &lv_font_montserrat_14, UI_COL_TEXT);
+    ui_label(panel, app_settings()->uart_hex_view ? UI_T(UART_SEND_HEX) : UI_T(UART_SEND_TEXT),
+             UI_FONT_14, UI_COL_TEXT);
 
     s_dialog_input = lv_textarea_create(panel);
     lv_obj_set_size(s_dialog_input, LV_PCT(100), 42);
@@ -228,10 +228,10 @@ static void do_send(lv_event_t *e)
                                      app_settings()->uart_hex_view ? "01 03 00 00"
                                                                    : "AT");
 
-    lv_obj_t *send   = ui_button(panel, "Send", dialog_send, NULL);
+    lv_obj_t *send   = ui_button(panel, UI_T(UART_SEND), dialog_send, NULL);
     lv_obj_align(send, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 
-    lv_obj_t *cancel = ui_button_soft(panel, "Cancel", dialog_close, NULL);
+    lv_obj_t *cancel = ui_button_soft(panel, UI_T(CANCEL), dialog_close, NULL);
     lv_obj_align(cancel, LV_ALIGN_BOTTOM_RIGHT, -78, 0);
 
     lv_obj_t *kb = lv_keyboard_create(s_dialog);
@@ -254,12 +254,12 @@ static void create(lv_obj_t *parent)
     lv_obj_align(cfg_card, LV_ALIGN_TOP_LEFT, 0, 0);
     ui_flex_col(cfg_card, 6);
 
-    ui_card_title(cfg_card, "Port Settings");
+    ui_card_title(cfg_card, UI_T(UART_PORT_SET));
 
     char port_text[24];
     snprintf(port_text, sizeof(port_text), "UART%d  (TX %d / RX %d)",
              BSP_UART_NUM, BSP_UART_PIN_TX, BSP_UART_PIN_RX);
-    ui_label(cfg_card, port_text, &lv_font_montserrat_12, UI_COL_MUTED);
+    ui_label(cfg_card, port_text, UI_FONT_12, UI_COL_MUTED);
 
     s_baud_dd = lv_dropdown_create(cfg_card);
     lv_dropdown_set_options_static(s_baud_dd, k_baud_opts);
@@ -278,10 +278,10 @@ static void create(lv_obj_t *parent)
     }
     lv_dropdown_set_selected(s_format_dd, format_index(cfg));
 
-    s_open_btn = ui_button(cfg_card, "Open", do_open, NULL);
+    s_open_btn = ui_button(cfg_card, UI_T(OPEN), do_open, NULL);
     lv_obj_set_width(s_open_btn, LV_PCT(100));
 
-    s_close_btn = ui_button(cfg_card, "Close", do_close, NULL);
+    s_close_btn = ui_button(cfg_card, UI_T(CLOSE), do_close, NULL);
     lv_obj_set_width(s_close_btn, LV_PCT(100));
 
     /* ---- right: receive area ---- */
@@ -292,13 +292,13 @@ static void create(lv_obj_t *parent)
     lv_obj_align(rx_card, LV_ALIGN_TOP_RIGHT, 0, 0);
     lv_obj_set_style_pad_all(rx_card, 6, 0);
 
-    ui_card_title(rx_card, "Receive Data");
+    ui_card_title(rx_card, UI_T(UART_RECEIVE));
 
     s_rx = lv_textarea_create(rx_card);
     lv_obj_set_size(s_rx, LV_PCT(100), h - bar_h - 6 - 34);
     lv_obj_align(s_rx, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_textarea_set_text(s_rx, "");
-    lv_obj_set_style_text_font(s_rx, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(s_rx, UI_FONT_12, 0);
     lv_obj_set_style_border_width(s_rx, 0, 0);
     lv_obj_set_style_bg_color(s_rx, lv_color_hex(0xF7F9F8), 0);
     /* Read-only: this is a log, and a caret here would invite typing into it. */
@@ -312,18 +312,23 @@ static void create(lv_obj_t *parent)
     lv_obj_clear_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
     ui_flex_row(bar, UI_PAD);
 
+    /* The glyph and the caption are separate strings now, so they are
+     * joined here rather than concatenated by the preprocessor. */
+    char clear_lbl[40], save_lbl[40], send_lbl[40];
+    snprintf(clear_lbl, sizeof(clear_lbl), LV_SYMBOL_TRASH  "%s", UI_T(UART_CLEAR_BTN));
+    snprintf(save_lbl,  sizeof(save_lbl),  LV_SYMBOL_SAVE   "%s", UI_T(UART_SAVE_BTN));
+    snprintf(send_lbl,  sizeof(send_lbl),  LV_SYMBOL_UPLOAD "%s", UI_T(UART_SEND_BTN));
+
     const lv_coord_t bw = (rx_w - 2 * UI_PAD) / 3;
-    lv_obj_set_width(ui_button_soft(bar, LV_SYMBOL_TRASH " Clear", do_clear, NULL), bw);
-    lv_obj_set_width(ui_button_soft(bar, LV_SYMBOL_SAVE " Save",  do_save,  NULL), bw);
-    lv_obj_set_width(ui_button(bar,      LV_SYMBOL_UPLOAD " Send", do_send, NULL), bw);
+    lv_obj_set_width(ui_button_soft(bar, clear_lbl, do_clear, NULL), bw);
+    lv_obj_set_width(ui_button_soft(bar, save_lbl,  do_save,  NULL), bw);
+    lv_obj_set_width(ui_button(bar,      send_lbl,  do_send,  NULL), bw);
+
+    s_pill = ui_pill(ui_header_slot(UI_SCREEN_UART), UI_T(UART_CLOSED), UI_COL_MUTED);
 }
 
 static void on_enter(void)
 {
-    lv_obj_t *slot = ui_header_slot(UI_SCREEN_UART);
-    if (slot && !s_pill) {
-        s_pill = ui_pill(slot, "Closed", UI_COL_MUTED);
-    }
     update_link_ui(svc_uart_is_open());
 
     /* Replay the scrollback so the view is not empty after a screen change. */
@@ -351,7 +356,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_uart_def = {
-    .title    = "UART",
+    .title    = UI_STR_TITLE_UART,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

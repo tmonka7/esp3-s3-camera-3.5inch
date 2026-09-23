@@ -10,8 +10,9 @@
  * a 200 px wide plot. */
 #define CHART_POINTS 24
 
-static const char *k_rail_names[RAIL_COUNT] = {
-    "Main Power", "Solar Inverter", "Battery", "UPS",
+static const ui_str_t k_rail_names[RAIL_COUNT] = {
+    UI_STR_PWR_RAIL_MAIN, UI_STR_PWR_RAIL_SOLAR,
+    UI_STR_PWR_RAIL_BATTERY, UI_STR_PWR_RAIL_UPS,
 };
 static const char *k_rail_icons[RAIL_COUNT] = {
     LV_SYMBOL_HOME, LV_SYMBOL_EYE_OPEN, LV_SYMBOL_BATTERY_FULL, LV_SYMBOL_CHARGE,
@@ -40,7 +41,7 @@ static void rail_toggled(lv_event_t *e)
         } else {
             lv_obj_add_state(sw, LV_STATE_CHECKED);
         }
-        ui_toast("%s did not respond", k_rail_names[rail]);
+        ui_toast(UI_T(PWR_NO_REPLY_FMT), ui_tr(k_rail_names[rail]));
     }
 }
 
@@ -88,7 +89,7 @@ static void apply_status(const power_status_t *st)
         }
     }
 
-    ui_pill_set(s_pill, st->rail[POWER_RAIL_MAIN] ? "Power ON" : "Power OFF",
+    ui_pill_set(s_pill, st->rail[POWER_RAIL_MAIN] ? UI_T(PWR_ON) : UI_T(PWR_OFF),
                 st->rail[POWER_RAIL_MAIN] ? UI_COL_PRIMARY : UI_COL_MUTED);
 }
 
@@ -117,10 +118,10 @@ static lv_obj_t *stat_box(lv_obj_t *parent, const char *caption, lv_coord_t x,
     lv_obj_set_pos(box, x, 0);
     lv_obj_clear_flag(box, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *cap = ui_label(box, caption, &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *cap = ui_label(box, caption, UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(cap, LV_ALIGN_TOP_LEFT, 0, 0);
 
-    *out_value = ui_label(box, "--", &lv_font_montserrat_16, UI_COL_TEXT);
+    *out_value = ui_label(box, "--", UI_FONT_16, UI_COL_TEXT);
     lv_obj_align(*out_value, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     return box;
 }
@@ -134,7 +135,7 @@ static void create(lv_obj_t *parent)
     lv_obj_t *summary = ui_card(parent, w, 62);
     lv_obj_align(summary, LV_ALIGN_TOP_MID, 0, 0);
 
-    lv_obj_t *bolt = ui_label(summary, LV_SYMBOL_CHARGE, &lv_font_montserrat_24,
+    lv_obj_t *bolt = ui_label(summary, LV_SYMBOL_CHARGE, UI_FONT_24,
                               lv_color_white());
     lv_obj_set_style_bg_color(bolt, UI_COL_PRIMARY, 0);
     lv_obj_set_style_bg_opa(bolt, LV_OPA_COVER, 0);
@@ -142,10 +143,10 @@ static void create(lv_obj_t *parent)
     lv_obj_set_style_pad_all(bolt, 8, 0);
     lv_obj_align(bolt, LV_ALIGN_LEFT_MID, 0, 0);
 
-    lv_obj_t *tcap = ui_label(summary, "Total Power", &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *tcap = ui_label(summary, UI_T(PWR_TOTAL), UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(tcap, LV_ALIGN_LEFT_MID, 50, -12);
 
-    s_total = ui_label(summary, "--.-- kW", &lv_font_montserrat_24, UI_COL_TEXT);
+    s_total = ui_label(summary, "--.-- kW", UI_FONT_24, UI_COL_TEXT);
     lv_obj_align(s_total, LV_ALIGN_LEFT_MID, 50, 8);
 
     lv_obj_t *stats = lv_obj_create(summary);
@@ -155,9 +156,9 @@ static void create(lv_obj_t *parent)
     lv_obj_clear_flag(stats, LV_OBJ_FLAG_SCROLLABLE);
 
     const lv_coord_t sw = (w - 200) / 3;
-    stat_box(stats, "Voltage", 0,        sw, &s_voltage);
-    stat_box(stats, "Current", sw,       sw, &s_current);
-    stat_box(stats, "Energy",  sw * 2,   sw, &s_energy);
+    stat_box(stats, UI_T(PWR_VOLTAGE), 0,      sw, &s_voltage);
+    stat_box(stats, UI_T(PWR_CURRENT), sw,     sw, &s_current);
+    stat_box(stats, UI_T(PWR_ENERGY),  sw * 2, sw, &s_energy);
 
     /* ---- rails + chart ---- */
     const lv_coord_t bottom_y = 62 + UI_PAD;
@@ -174,11 +175,11 @@ static void create(lv_obj_t *parent)
         lv_obj_set_size(row, LV_PCT(100), 30);
         lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 
-        lv_obj_t *icon = ui_label(row, k_rail_icons[i], &lv_font_montserrat_14,
+        lv_obj_t *icon = ui_label(row, k_rail_icons[i], UI_FONT_14,
                                   UI_COL_PRIMARY);
         lv_obj_align(icon, LV_ALIGN_LEFT_MID, 2, 0);
 
-        lv_obj_t *name = ui_label(row, k_rail_names[i], &lv_font_montserrat_12,
+        lv_obj_t *name = ui_label(row, ui_tr(k_rail_names[i]), UI_FONT_12,
                                   UI_COL_TEXT);
         lv_obj_align(name, LV_ALIGN_LEFT_MID, 24, 0);
 
@@ -194,7 +195,7 @@ static void create(lv_obj_t *parent)
     lv_obj_t *chart_card = ui_card(parent, w - rails_w - UI_PAD, bottom_h);
     lv_obj_set_pos(chart_card, rails_w + UI_PAD, bottom_y);
 
-    ui_card_title(chart_card, "Power Usage");
+    ui_card_title(chart_card, UI_T(PWR_USAGE));
 
     s_chart = lv_chart_create(chart_card);
     lv_obj_set_size(s_chart, w - rails_w - UI_PAD - 20, bottom_h - 38);
@@ -207,6 +208,8 @@ static void create(lv_obj_t *parent)
     lv_obj_set_style_bg_opa(s_chart, LV_OPA_TRANSP, 0);
     lv_obj_set_style_size(s_chart, 0, LV_PART_INDICATOR);   /* hide point dots */
 
+    s_pill = ui_pill(ui_header_slot(UI_SCREEN_POWER), UI_T(PWR_OFF), UI_COL_MUTED);
+
     s_series = lv_chart_add_series(s_chart, UI_COL_PRIMARY, LV_CHART_AXIS_PRIMARY_Y);
     /* Values are stored in 10 W units, so 300 is 3 kW full scale. */
     lv_chart_set_range(s_chart, LV_CHART_AXIS_PRIMARY_Y, 0, 300);
@@ -214,11 +217,6 @@ static void create(lv_obj_t *parent)
 
 static void on_enter(void)
 {
-    lv_obj_t *slot = ui_header_slot(UI_SCREEN_POWER);
-    if (slot && !s_pill) {
-        s_pill = ui_pill(slot, "Power OFF", UI_COL_MUTED);
-    }
-
     power_status_t st;
     svc_power_get(&st);
     apply_status(&st);
@@ -233,7 +231,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_power_def = {
-    .title    = "Power Control",
+    .title    = UI_STR_TITLE_POWER,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

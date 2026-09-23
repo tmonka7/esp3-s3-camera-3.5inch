@@ -31,8 +31,9 @@ typedef enum {
     FIELD_COUNT,
 } dt_field_t;
 
-static const char *k_captions[FIELD_COUNT] = {
-    "Year", "Month", "Day", "Hour", "Min", "Sec",
+static const ui_str_t k_captions[FIELD_COUNT] = {
+    UI_STR_DT_YEAR, UI_STR_DT_MONTH, UI_STR_DT_DAY,
+    UI_STR_DT_HOUR, UI_STR_DT_MIN,   UI_STR_DT_SEC,
 };
 static const lv_coord_t k_widths[FIELD_COUNT] = { 76, 60, 60, 60, 60, 60 };
 
@@ -114,7 +115,7 @@ static void reload_clicked(lv_event_t *e)
 {
     (void)e;
     load_from_clock();
-    ui_toast("Reset to the current clock");
+    ui_toast("%s", UI_T(DT_RESET_HINT));
 }
 
 static void save_clicked(lv_event_t *e)
@@ -130,12 +131,11 @@ static void save_clicked(lv_event_t *e)
     local.tm_sec  = (int)lv_roller_get_selected(s_roller[FIELD_SEC]);
 
     if (app_time_set_local(&local) != ESP_OK) {
-        ui_toast("Could not set the clock");
+        ui_toast("%s", UI_T(DT_SET_FAIL));
         return;
     }
 
-    ui_toast(app_time_has_rtc() ? "Clock set and saved to the RTC"
-                                : "Clock set (no RTC -- lost on power off)");
+    ui_toast("%s", app_time_has_rtc() ? UI_T(DT_SET_RTC) : UI_T(DT_SET_NO_RTC));
     ui_back();
 }
 
@@ -150,7 +150,7 @@ static void tick(lv_timer_t *t)
     app_time_format(buf, sizeof(buf), "%Y-%m-%d  %H:%M:%S");
 
     char line[64];
-    snprintf(line, sizeof(line), "Now:  %s", buf);
+    snprintf(line, sizeof(line), UI_T(DT_NOW_FMT), buf);
     lv_label_set_text(s_now, line);
 }
 
@@ -171,10 +171,10 @@ static void create(lv_obj_t *parent)
     lv_obj_t *head = ui_card(parent, w, 40);
     lv_obj_align(head, LV_ALIGN_TOP_MID, 0, 0);
 
-    s_now = ui_label(head, "Now:  -------:--", &lv_font_montserrat_16, UI_COL_TEXT);
+    s_now = ui_label(head, UI_T(DT_NOW_NA), UI_FONT_16, UI_COL_TEXT);
     lv_obj_align(s_now, LV_ALIGN_LEFT_MID, 2, 0);
 
-    s_rtc_pill = ui_pill(head, "RTC", UI_COL_PRIMARY);
+    s_rtc_pill = ui_pill(head, UI_T(DT_RTC), UI_COL_PRIMARY);
     lv_obj_align(s_rtc_pill, LV_ALIGN_RIGHT_MID, 0, 0);
 
     /* ---- rollers ---- */
@@ -191,7 +191,7 @@ static void create(lv_obj_t *parent)
     lv_coord_t x = (w - 12 - total) / 2;
 
     for (int i = 0; i < FIELD_COUNT; i++) {
-        lv_obj_t *cap = ui_label(card, k_captions[i], &lv_font_montserrat_12, UI_COL_MUTED);
+        lv_obj_t *cap = ui_label(card, ui_tr(k_captions[i]), UI_FONT_12, UI_COL_MUTED);
         lv_obj_set_width(cap, k_widths[i]);
         lv_obj_set_style_text_align(cap, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_pos(cap, x, 0);
@@ -208,7 +208,7 @@ static void create(lv_obj_t *parent)
         lv_roller_set_visible_row_count(r, 3);
         lv_obj_set_width(r, k_widths[i]);
         lv_obj_set_pos(r, x, 18);
-        lv_obj_set_style_text_font(r, &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_font(r, UI_FONT_16, 0);
         lv_obj_set_style_bg_color(r, UI_COL_PRIMARY, LV_PART_SELECTED);
         lv_obj_set_style_text_color(r, lv_color_white(), LV_PART_SELECTED);
         lv_obj_set_style_border_width(r, 1, 0);
@@ -226,18 +226,18 @@ static void create(lv_obj_t *parent)
                         LV_EVENT_VALUE_CHANGED, NULL);
 
     /* ---- footer ---- */
-    lv_obj_t *hint = ui_label(parent,
-                              "Enter local time. The clock is set by hand; there is no "
-                              "network sync.",
-                              &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *hint = ui_label(parent, UI_T(DT_HINT), UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(hint, LV_ALIGN_TOP_LEFT, 2, 220);
 
-    lv_obj_t *reload = ui_button_soft(parent, LV_SYMBOL_REFRESH " Current",
-                                      reload_clicked, NULL);
+    char reload_lbl[40], save_lbl[40];
+    snprintf(reload_lbl, sizeof(reload_lbl), LV_SYMBOL_REFRESH "%s", UI_T(DT_CURRENT));
+    snprintf(save_lbl,   sizeof(save_lbl),   LV_SYMBOL_OK      "%s", UI_T(DT_SET_CLOCK));
+
+    lv_obj_t *reload = ui_button_soft(parent, reload_lbl, reload_clicked, NULL);
     lv_obj_set_size(reload, 130, 34);
     lv_obj_align(reload, LV_ALIGN_BOTTOM_LEFT, 0, 0);
 
-    lv_obj_t *save = ui_button(parent, LV_SYMBOL_OK " Set Clock", save_clicked, NULL);
+    lv_obj_t *save = ui_button(parent, save_lbl, save_clicked, NULL);
     lv_obj_set_size(save, 150, 34);
     lv_obj_align(save, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 }
@@ -245,7 +245,7 @@ static void create(lv_obj_t *parent)
 static void on_enter(void)
 {
     ui_pill_set(s_rtc_pill,
-                app_time_has_rtc() ? "RTC" : "no RTC",
+                app_time_has_rtc() ? UI_T(DT_RTC) : UI_T(DT_NO_RTC),
                 app_time_has_rtc() ? UI_COL_PRIMARY : UI_COL_WARN);
 
     load_from_clock();
@@ -265,7 +265,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_datetime_def = {
-    .title    = "Date & Time",
+    .title    = UI_STR_TITLE_DATETIME,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

@@ -25,7 +25,7 @@ static void apply_cell(uint8_t i, bool on, bool ok)
         return;
     }
 
-    ui_pill_set(c->pill, on ? "ON" : "OFF",
+    ui_pill_set(c->pill, on ? UI_T(ON_UPPER) : UI_T(OFF_UPPER),
                 !ok ? UI_COL_DANGER : (on ? UI_COL_PRIMARY : UI_COL_MUTED));
 
     lv_obj_set_style_text_color(c->icon, on ? UI_COL_PRIMARY : UI_COL_TRACK, 0);
@@ -40,7 +40,7 @@ static void cell_clicked(lv_event_t *e)
     /* The service publishes APP_EVT_SWITCH_UPDATE, which repaints the cell --
      * including when the write failed. Nothing is painted optimistically. */
     if (svc_switch_toggle(i) != ESP_OK) {
-        ui_toast("%s did not respond", svc_switch_name(i));
+        ui_toast(UI_T(SW_NO_REPLY_FMT), svc_switch_name(i));
     }
 }
 
@@ -83,20 +83,20 @@ static void create(lv_obj_t *parent)
 
         char num[4];
         snprintf(num, sizeof(num), "%u", (unsigned)(i + 1));
-        lv_obj_t *idx = ui_label(c->card, num, &lv_font_montserrat_12, UI_COL_MUTED);
+        lv_obj_t *idx = ui_label(c->card, num, UI_FONT_12, UI_COL_MUTED);
         lv_obj_align(idx, LV_ALIGN_TOP_MID, 0, 0);
 
-        c->icon = ui_label(c->card, LV_SYMBOL_POWER, &lv_font_montserrat_24, UI_COL_TRACK);
+        c->icon = ui_label(c->card, LV_SYMBOL_POWER, UI_FONT_24, UI_COL_TRACK);
         lv_obj_align(c->icon, LV_ALIGN_TOP_MID, 0, 16);
 
         c->name = ui_label(c->card, cfg->switches[i].name,
-                           &lv_font_montserrat_12, UI_COL_TEXT);
+                           UI_FONT_12, UI_COL_TEXT);
         lv_label_set_long_mode(c->name, LV_LABEL_LONG_DOT);
         lv_obj_set_width(c->name, cell_w - 10);
         lv_obj_set_style_text_align(c->name, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(c->name, LV_ALIGN_BOTTOM_MID, 0, -22);
 
-        c->pill = ui_pill(c->card, "OFF", UI_COL_MUTED);
+        c->pill = ui_pill(c->card, UI_T(OFF_UPPER), UI_COL_MUTED);
         lv_obj_align(c->pill, LV_ALIGN_BOTTOM_MID, 0, 0);
     }
 }
@@ -120,7 +120,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_switches_def = {
-    .title    = "Room Switches",
+    .title    = UI_STR_TITLE_SWITCHES,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

@@ -16,11 +16,9 @@ static const svc_modbus_fn_t k_functions[] = {
     MB_FN_READ_COILS,
     MB_FN_READ_DISCRETE,
 };
-static const char *k_function_opts =
-    "Read Holding Registers\n"
-    "Read Input Registers\n"
-    "Read Coils\n"
-    "Read Discrete Inputs";
+/* The four lines of the dropdown come from one translated string, so the
+ * order here and in k_functions above stay locked together. */
+#define k_function_opts  UI_T(MB_FN_OPTS)
 
 static const uint16_t k_quantities[] = { 1, 2, 4, 8, 10, 16, 32 };
 static const char *k_quantity_opts = "1\n2\n4\n8\n10\n16\n32";
@@ -77,17 +75,17 @@ static void device_clicked(lv_event_t *e)
     switch (row) {
     case DEV_RTU:
         if (svc_modbus_set_transport(MB_TRANSPORT_RTU) == ESP_OK) {
-            ui_toast("Modbus-RTU active");
+            ui_toast("%s", UI_T(MB_RTU_ACTIVE));
         } else {
-            ui_toast("RTU could not be started");
+            ui_toast("%s", UI_T(MB_RTU_FAIL));
         }
         break;
 
     case DEV_TCP:
         if (svc_modbus_set_transport(MB_TRANSPORT_TCP) == ESP_OK) {
-            ui_toast("Modbus-TCP active");
+            ui_toast("%s", UI_T(MB_TCP_ACTIVE));
         } else {
-            ui_toast("TCP needs Wi-Fi and a reachable host");
+            ui_toast("%s", UI_T(MB_TCP_NEEDS));
         }
         break;
 
@@ -105,7 +103,7 @@ static void show_result(const svc_modbus_result_t *r)
 {
     if (!r->ok) {
         char msg[96];
-        snprintf(msg, sizeof(msg), "Slave %u, function %u: %s\n",
+        snprintf(msg, sizeof(msg), UI_T(MB_ERR_FMT),
                  r->slave, r->function, esp_err_to_name((esp_err_t)r->err));
         lv_textarea_set_text(s_data, msg);
         return;
@@ -147,10 +145,10 @@ static void on_state(void *arg, esp_event_base_t base, int32_t id, void *data)
     }
 
     switch (*st) {
-    case APP_LINK_UP:         ui_pill_set(s_pill, "Connected",  UI_COL_PRIMARY); break;
-    case APP_LINK_CONNECTING: ui_pill_set(s_pill, "Connecting", UI_COL_WARN);    break;
-    case APP_LINK_ERROR:      ui_pill_set(s_pill, "Error",      UI_COL_DANGER);  break;
-    default:                  ui_pill_set(s_pill, "Offline",    UI_COL_MUTED);   break;
+    case APP_LINK_UP:         ui_pill_set(s_pill, UI_T(MB_CONNECTED),  UI_COL_PRIMARY); break;
+    case APP_LINK_CONNECTING: ui_pill_set(s_pill, UI_T(MB_CONNECTING), UI_COL_WARN);    break;
+    case APP_LINK_ERROR:      ui_pill_set(s_pill, UI_T(MB_ERROR),      UI_COL_DANGER);  break;
+    default:                  ui_pill_set(s_pill, UI_T(MB_OFFLINE),    UI_COL_MUTED);   break;
     }
     refresh_devices();
 
@@ -174,7 +172,7 @@ static void do_read(lv_event_t *e)
                               k_quantities[qi], NULL) != ESP_OK) {
         /* The failure detail arrives via APP_EVT_MODBUS_RESULT; this is just
          * the immediate "nothing happened" feedback. */
-        ui_toast("Read failed");
+        ui_toast("%s", UI_T(MB_READ_FAIL));
     }
 }
 
@@ -203,9 +201,9 @@ static void wdialog_commit(lv_event_t *e)
     const uint16_t value = (uint16_t)lv_spinbox_get_value(s_wvalue);
 
     if (svc_modbus_ui_request(s_slave, MB_FN_WRITE_SINGLE_REG, addr, 1, &value) == ESP_OK) {
-        ui_toast("Wrote %u to %u", value, addr);
+        ui_toast(UI_T(MB_WROTE_FMT), value, addr);
     } else {
-        ui_toast("Write failed");
+        ui_toast("%s", UI_T(MB_WRITE_FAIL));
     }
     wdialog_close(NULL);
 }
@@ -226,9 +224,9 @@ static void do_write(lv_event_t *e)
     ui_flex_col(panel, 8);
 
     char hdr[64];
-    snprintf(hdr, sizeof(hdr), "Write register %u on slave %u",
+    snprintf(hdr, sizeof(hdr), UI_T(MB_WRITE_PROMPT),
              (unsigned)lv_spinbox_get_value(s_addr), s_slave);
-    ui_label(panel, hdr, &lv_font_montserrat_12, UI_COL_MUTED);
+    ui_label(panel, hdr, UI_FONT_12, UI_COL_MUTED);
 
     s_wvalue = lv_spinbox_create(panel);
     lv_spinbox_set_range(s_wvalue, 0, 65535);
@@ -240,8 +238,8 @@ static void do_write(lv_event_t *e)
     lv_obj_set_size(row, LV_PCT(100), 36);
     ui_flex_row(row, UI_PAD);
 
-    lv_obj_set_width(ui_button_soft(row, "Cancel", wdialog_close,  NULL), 100);
-    lv_obj_set_width(ui_button(row,      "Write",  wdialog_commit, NULL), 100);
+    lv_obj_set_width(ui_button_soft(row, UI_T(CANCEL),   wdialog_close,  NULL), 100);
+    lv_obj_set_width(ui_button(row,      UI_T(MB_WRITE), wdialog_commit, NULL), 100);
 }
 
 /* --------------------------------------------------------------------------
@@ -256,13 +254,13 @@ static lv_obj_t *add_device_row(lv_obj_t *parent, const char *title,
     lv_obj_set_style_radius(item, 6, 0);
     lv_obj_clear_flag(item, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *dot = ui_label(item, LV_SYMBOL_OK, &lv_font_montserrat_12, UI_COL_TRACK);
+    lv_obj_t *dot = ui_label(item, LV_SYMBOL_OK, UI_FONT_12, UI_COL_TRACK);
     lv_obj_align(dot, LV_ALIGN_LEFT_MID, 3, 0);
 
-    lv_obj_t *name = ui_label(item, title, &lv_font_montserrat_12, UI_COL_TEXT);
+    lv_obj_t *name = ui_label(item, title, UI_FONT_12, UI_COL_TEXT);
     lv_obj_align(name, LV_ALIGN_LEFT_MID, 19, -6);
 
-    lv_obj_t *sub = ui_label(item, subtitle, &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *sub = ui_label(item, subtitle, UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(sub, LV_ALIGN_LEFT_MID, 19, 7);
 
     lv_obj_add_event_cb(item, device_clicked, LV_EVENT_CLICKED, (void *)(uintptr_t)row);
@@ -280,18 +278,18 @@ static void create(lv_obj_t *parent)
     lv_obj_set_style_pad_all(dev_card, 5, 0);
     ui_flex_col(dev_card, 3);
 
-    ui_label(dev_card, "Device List", &lv_font_montserrat_12, UI_COL_MUTED);
+    ui_label(dev_card, UI_T(MB_DEVICE_LIST), UI_FONT_12, UI_COL_MUTED);
 
     const app_settings_t *cfg = app_settings();
 
     char rtu_sub[32];
     snprintf(rtu_sub, sizeof(rtu_sub), "UART%d  %lu",
              BSP_RS485_UART_NUM, (unsigned long)cfg->mb_rtu_baud);
-    add_device_row(dev_card, "Modbus-RTU", rtu_sub, DEV_RTU);
+    add_device_row(dev_card, UI_T(MB_RTU), rtu_sub, DEV_RTU);
 
-    add_device_row(dev_card, "Modbus-TCP", cfg->mb_tcp_host, DEV_TCP);
-    add_device_row(dev_card, "Inverter", "ID: 1", DEV_SLAVE_1);
-    add_device_row(dev_card, "Meter",    "ID: 2", DEV_SLAVE_2);
+    add_device_row(dev_card, UI_T(MB_TCP), cfg->mb_tcp_host, DEV_TCP);
+    add_device_row(dev_card, UI_T(MB_DEV_INVERTER), "ID: 1", DEV_SLAVE_1);
+    add_device_row(dev_card, UI_T(MB_DEV_METER),    "ID: 2", DEV_SLAVE_2);
 
     /* ---- right: register access ---- */
     const lv_coord_t w = ui_width() - PANEL_W - 3 * UI_PAD;
@@ -300,13 +298,13 @@ static void create(lv_obj_t *parent)
     lv_obj_align(card, LV_ALIGN_TOP_RIGHT, 0, 0);
     lv_obj_set_style_pad_all(card, 6, 0);
 
-    ui_card_title(card, "Register Read / Write");
+    ui_card_title(card, UI_T(MB_REGISTER_RW));
 
     const lv_coord_t label_w = 62;
     const lv_coord_t field_x = label_w + 4;
     const lv_coord_t field_w = w - field_x - 12;
 
-    lv_obj_t *l1 = ui_label(card, "Address", &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *l1 = ui_label(card, UI_T(MB_ADDRESS), UI_FONT_12, UI_COL_MUTED);
     lv_obj_set_pos(l1, 0, 26);
 
     s_addr = lv_spinbox_create(card);
@@ -315,7 +313,7 @@ static void create(lv_obj_t *parent)
     lv_obj_set_size(s_addr, field_w, 26);
     lv_obj_set_pos(s_addr, field_x, 22);
 
-    lv_obj_t *l2 = ui_label(card, "Function", &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *l2 = ui_label(card, UI_T(MB_FUNCTION), UI_FONT_12, UI_COL_MUTED);
     lv_obj_set_pos(l2, 0, 56);
 
     s_fn_dd = lv_dropdown_create(card);
@@ -323,7 +321,7 @@ static void create(lv_obj_t *parent)
     lv_obj_set_size(s_fn_dd, field_w, 26);
     lv_obj_set_pos(s_fn_dd, field_x, 52);
 
-    lv_obj_t *l3 = ui_label(card, "Quantity", &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *l3 = ui_label(card, UI_T(MB_QUANTITY), UI_FONT_12, UI_COL_MUTED);
     lv_obj_set_pos(l3, 0, 86);
 
     s_qty_dd = lv_dropdown_create(card);
@@ -332,35 +330,36 @@ static void create(lv_obj_t *parent)
     lv_obj_set_pos(s_qty_dd, field_x, 82);
     lv_dropdown_set_selected(s_qty_dd, 4);      /* 10 registers */
 
-    lv_obj_t *read_btn = ui_button(card, LV_SYMBOL_DOWNLOAD " Read", do_read, NULL);
+    char read_lbl[40];
+    snprintf(read_lbl, sizeof(read_lbl), LV_SYMBOL_DOWNLOAD "%s", UI_T(MB_READ_BTN));
+    lv_obj_t *read_btn = ui_button(card, read_lbl, do_read, NULL);
     lv_obj_set_size(read_btn, (w - 24) / 2, 28);
     lv_obj_set_pos(read_btn, 0, 114);
 
-    lv_obj_t *write_btn = ui_button_soft(card, LV_SYMBOL_UPLOAD " Write", do_write, NULL);
+    char write_lbl[40];
+    snprintf(write_lbl, sizeof(write_lbl), LV_SYMBOL_UPLOAD "%s", UI_T(MB_WRITE_BTN));
+    lv_obj_t *write_btn = ui_button_soft(card, write_lbl, do_write, NULL);
     lv_obj_set_size(write_btn, (w - 24) / 2, 28);
     lv_obj_set_pos(write_btn, (w - 24) / 2 + 8, 114);
 
-    lv_obj_t *dl = ui_label(card, "Data (Hex)", &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *dl = ui_label(card, UI_T(MB_DATA_HEX), UI_FONT_12, UI_COL_MUTED);
     lv_obj_set_pos(dl, 0, 150);
 
     s_data = lv_textarea_create(card);
     lv_obj_set_size(s_data, w - 12, h - 182);
     lv_obj_set_pos(s_data, 0, 168);
-    lv_obj_set_style_text_font(s_data, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(s_data, UI_FONT_12, 0);
     lv_obj_set_style_border_width(s_data, 0, 0);
     lv_obj_set_style_bg_color(s_data, lv_color_hex(0xF7F9F8), 0);
-    lv_textarea_set_text(s_data, "Pick a device, then Read.\n");
+    lv_textarea_set_text(s_data, UI_T(MB_PICK_DEVICE));
     lv_textarea_set_cursor_click_pos(s_data, false);
     lv_obj_clear_flag(s_data, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+
+    s_pill = ui_pill(ui_header_slot(UI_SCREEN_MODBUS), UI_T(MB_OFFLINE), UI_COL_MUTED);
 }
 
 static void on_enter(void)
 {
-    lv_obj_t *slot = ui_header_slot(UI_SCREEN_MODBUS);
-    if (slot && !s_pill) {
-        s_pill = ui_pill(slot, "Offline", UI_COL_MUTED);
-    }
-
     const app_link_state_t st = svc_modbus_link_state();
     on_state(NULL, NULL, 0, (void *)&st);
 
@@ -376,7 +375,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_modbus_def = {
-    .title    = "Modbus",
+    .title    = UI_STR_TITLE_MODBUS,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

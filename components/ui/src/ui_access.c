@@ -24,18 +24,18 @@ static void paint_lock(void)
 
     const bool unlocked = svc_access_lock_state() == ACCESS_LOCK_UNLOCKED;
 
-    lv_label_set_text(s_state_lbl, unlocked ? "UNLOCKED" : "LOCKED");
+    lv_label_set_text(s_state_lbl, unlocked ? UI_T(ACC_UNLOCKED) : UI_T(ACC_LOCKED));
     lv_obj_set_style_text_color(s_state_lbl,
                                 unlocked ? UI_COL_PRIMARY : UI_COL_TEXT, 0);
 
     const uint32_t left = svc_access_relock_in();
     if (unlocked && left) {
         char buf[32];
-        snprintf(buf, sizeof(buf), "relocks in %u s", (unsigned)left);
+        snprintf(buf, sizeof(buf), UI_T(ACC_RELOCK_FMT), (unsigned)left);
         lv_label_set_text(s_count_lbl, buf);
     } else {
         lv_label_set_text(s_count_lbl, svc_access_enrolling()
-                                           ? "waiting for a card..."
+                                           ? UI_T(ACC_WAITING_CARD)
                                            : "");
     }
 }
@@ -52,26 +52,26 @@ static void add_log_row(const access_event_t *e)
                        e->result == ACCESS_GRANTED_MANUAL ||
                        e->result == ACCESS_ENROLLED);
 
-    lv_obj_t *dot = ui_label(row, LV_SYMBOL_BULLET, &lv_font_montserrat_14,
+    lv_obj_t *dot = ui_label(row, LV_SYMBOL_BULLET, UI_FONT_14,
                              good ? UI_COL_PRIMARY : UI_COL_DANGER);
     lv_obj_align(dot, LV_ALIGN_LEFT_MID, 0, 0);
 
-    lv_obj_t *time_lbl = ui_label(row, e->stamp, &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *time_lbl = ui_label(row, e->stamp, UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(time_lbl, LV_ALIGN_LEFT_MID, 16, 0);
 
     /* Name when we know it, the raw credential when we do not -- an unknown
      * card is exactly the case where the UID is the useful thing to show. */
     char text[48];
     snprintf(text, sizeof(text), "%s  %s",
-             svc_access_result_name(e->result),
+             ui_tr_access_result(e->result),
              e->name[0] ? e->name : e->credential);
 
-    lv_obj_t *what = ui_label(row, text, &lv_font_montserrat_12,
+    lv_obj_t *what = ui_label(row, text, UI_FONT_12,
                               good ? UI_COL_TEXT : UI_COL_DANGER);
     lv_obj_align(what, LV_ALIGN_LEFT_MID, 74, 0);
 
     if (e->kind == ACCESS_CRED_FACE) {
-        lv_obj_t *tag = ui_label(row, "face", &lv_font_montserrat_12, UI_COL_MUTED);
+        lv_obj_t *tag = ui_label(row, UI_T(ACC_FACE_TAG), UI_FONT_12, UI_COL_MUTED);
         lv_obj_align(tag, LV_ALIGN_RIGHT_MID, 0, 0);
     }
 }
@@ -87,8 +87,8 @@ static void paint_log(void)
     const size_t   n = svc_access_history(events, ACCESS_HISTORY_DEPTH);
 
     if (n == 0) {
-        lv_obj_t *empty = ui_label(s_log_list, "Nothing yet",
-                                   &lv_font_montserrat_12, UI_COL_MUTED);
+        lv_obj_t *empty = ui_label(s_log_list, UI_T(ACC_NOTHING_YET),
+                                   UI_FONT_12, UI_COL_MUTED);
         lv_obj_set_width(empty, LV_PCT(100));
         return;
     }
@@ -104,9 +104,9 @@ static void paint_pill(void)
         return;
     }
     if (bsp_rfid_present()) {
-        ui_pill_set(s_pill, "Reader", UI_COL_PRIMARY);
+        ui_pill_set(s_pill, UI_T(ACC_READER), UI_COL_PRIMARY);
     } else {
-        ui_pill_set(s_pill, "No reader", UI_COL_MUTED);
+        ui_pill_set(s_pill, UI_T(ACC_NO_READER), UI_COL_MUTED);
     }
 }
 
@@ -117,7 +117,7 @@ static void unlock_clicked(lv_event_t *e)
 {
     (void)e;
     if (svc_access_unlock_manual() != ESP_OK) {
-        ui_toast("Could not unlock");
+        ui_toast("%s", UI_T(ACC_NO_UNLOCK));
     }
 }
 
@@ -131,7 +131,7 @@ static void enroll_clicked(lv_event_t *e)
 {
     (void)e;
     if (svc_access_enroll_begin(ENROLL_WINDOW_S) == ESP_OK) {
-        ui_toast("Present a card within %d s", ENROLL_WINDOW_S);
+        ui_toast(UI_T(ACC_PRESENT_FMT), ENROLL_WINDOW_S);
         paint_lock();
         return;
     }
@@ -139,7 +139,7 @@ static void enroll_clicked(lv_event_t *e)
     /* No reader answered. Rather than a dead end, hand the user to the page
      * that can still add a credential by typing the UID -- which is how you
      * commission this before the RC522 is wired. */
-    ui_toast("No reader -- add the UID by hand");
+    ui_toast("%s", UI_T(ACC_NO_READER_HINT));
     ui_show(UI_SCREEN_CARDS);
 }
 
@@ -165,9 +165,9 @@ static void on_access(void *arg, esp_event_base_t base, int32_t id, void *data)
     ui_unlock();
 
     if (e->result == ACCESS_ENROLLED) {
-        ui_toast("Enrolled: %s", e->name);
+        ui_toast(UI_T(ACC_ENROLLED_FMT), e->name);
     } else if (e->result == ACCESS_DENIED_LOCKOUT) {
-        ui_toast("Too many failures -- reader paused");
+        ui_toast("%s", UI_T(ACC_LOCKOUT));
     }
 }
 
@@ -202,29 +202,31 @@ static void create(lv_obj_t *parent)
     lv_obj_t *door = ui_card(parent, left_w, h);
     lv_obj_align(door, LV_ALIGN_TOP_LEFT, 0, 0);
 
-    ui_card_title(door, "Door");
+    ui_card_title(door, UI_T(ACC_DOOR));
 
-    s_state_lbl = ui_label(door, "LOCKED", &lv_font_montserrat_24, UI_COL_TEXT);
+    s_state_lbl = ui_label(door, UI_T(ACC_LOCKED), UI_FONT_24, UI_COL_TEXT);
     lv_obj_align(s_state_lbl, LV_ALIGN_TOP_MID, 0, 46);
 
-    s_count_lbl = ui_label(door, "", &lv_font_montserrat_12, UI_COL_MUTED);
+    s_count_lbl = ui_label(door, "", UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(s_count_lbl, LV_ALIGN_TOP_MID, 0, 78);
 
-    lv_obj_t *unlock_btn = ui_button(door, "Unlock", unlock_clicked, NULL);
+    lv_obj_t *unlock_btn = ui_button(door, UI_T(ACC_UNLOCK), unlock_clicked, NULL);
     lv_obj_set_size(unlock_btn, left_w - 28, 40);
     lv_obj_align(unlock_btn, LV_ALIGN_TOP_MID, 0, 104);
 
-    lv_obj_t *lock_btn = ui_button_soft(door, "Lock now", lock_clicked, NULL);
+    lv_obj_t *lock_btn = ui_button_soft(door, UI_T(ACC_LOCK_NOW), lock_clicked, NULL);
     lv_obj_set_size(lock_btn, left_w - 28, 34);
     lv_obj_align(lock_btn, LV_ALIGN_TOP_MID, 0, 150);
 
-    lv_obj_t *add_btn = ui_button_soft(door, LV_SYMBOL_PLUS " Add card",
-                                       enroll_clicked, NULL);
+    char add_label[48];
+    snprintf(add_label, sizeof(add_label), LV_SYMBOL_PLUS "%s", UI_T(ACC_ADD_CARD));
+    lv_obj_t *add_btn = ui_button_soft(door, add_label, enroll_clicked, NULL);
     lv_obj_set_size(add_btn, left_w - 28, 34);
     lv_obj_align(add_btn, LV_ALIGN_BOTTOM_MID, 0, -42);
 
-    lv_obj_t *cards_btn = ui_button_soft(door, LV_SYMBOL_LIST " Cards",
-                                         cards_clicked, NULL);
+    char cards_label[48];
+    snprintf(cards_label, sizeof(cards_label), LV_SYMBOL_LIST "%s", UI_T(ACC_CARDS));
+    lv_obj_t *cards_btn = ui_button_soft(door, cards_label, cards_clicked, NULL);
     lv_obj_set_size(cards_btn, left_w - 28, 34);
     lv_obj_align(cards_btn, LV_ALIGN_BOTTOM_MID, 0, -4);
 
@@ -232,7 +234,7 @@ static void create(lv_obj_t *parent)
     lv_obj_t *log = ui_card(parent, right_w, h);
     lv_obj_align(log, LV_ALIGN_TOP_RIGHT, 0, 0);
 
-    ui_card_title(log, "Recent");
+    ui_card_title(log, UI_T(ACC_RECENT));
 
     s_log_list = lv_obj_create(log);
     lv_obj_remove_style_all(s_log_list);
@@ -241,7 +243,7 @@ static void create(lv_obj_t *parent)
     ui_flex_col(s_log_list, 0);
     lv_obj_set_style_pad_all(s_log_list, 0, 0);
 
-    s_pill = ui_pill(ui_header_slot(UI_SCREEN_ACCESS), "No reader", UI_COL_MUTED);
+    s_pill = ui_pill(ui_header_slot(UI_SCREEN_ACCESS), UI_T(ACC_NO_READER), UI_COL_MUTED);
 }
 
 static void on_enter(void)
@@ -275,7 +277,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_access_def = {
-    .title    = "Door Access",
+    .title    = UI_STR_TITLE_ACCESS,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

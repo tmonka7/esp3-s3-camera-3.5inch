@@ -21,12 +21,13 @@ extern "C" {
 
 /* Bump whenever the struct layout changes; a mismatch falls back to
  * defaults instead of reading a stale layout. */
-#define APP_SETTINGS_VERSION    5
+#define APP_SETTINGS_VERSION    6
 
+/* UI language. The order is the order the picker lists them in, so adding
+ * one means adding a column to components/ui/src/ui_strings.def as well. */
 typedef enum {
-    APP_LANG_EN = 0,
-    APP_LANG_KO,
-    APP_LANG_ZH,
+    APP_LANG_EN = 0,      /* English  */
+    APP_LANG_JA,          /* Japanese */
     APP_LANG_MAX,
 } app_language_t;
 

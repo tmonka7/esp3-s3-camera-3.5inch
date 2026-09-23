@@ -73,9 +73,9 @@ static void act_snapshot(lv_event_t *e)
     char path[96];
     if (svc_media_snapshot(path, sizeof(path)) == ESP_OK) {
         const char *name = strrchr(path, '/');
-        ui_toast("Saved %s", name ? name + 1 : path);
+        ui_toast(UI_T(CAM_SAVED_FMT), name ? name + 1 : path);
     } else {
-        ui_toast("Snapshot failed - check the TF card");
+        ui_toast("%s", UI_T(CAM_SNAP_FAIL));
     }
 }
 
@@ -85,11 +85,11 @@ static void act_record(lv_event_t *e)
 
     if (svc_media_recording()) {
         svc_media_record_stop();
-        ui_toast("Recording stopped");
+        ui_toast("%s", UI_T(CAM_REC_STOPPED));
     } else if (svc_media_record_start() == ESP_OK) {
-        ui_toast("Recording...");
+        ui_toast("%s", UI_T(CAM_REC_STARTED));
     } else {
-        ui_toast("Cannot record - check the TF card");
+        ui_toast("%s", UI_T(CAM_REC_FAIL));
     }
 }
 
@@ -101,7 +101,7 @@ static void act_flip(lv_event_t *e)
     cfg->cam_vflip = !cfg->cam_vflip;
     bsp_camera_set_flip(cfg->cam_hmirror, cfg->cam_vflip);
     app_settings_commit_deferred();
-    ui_toast("Image flipped");
+    ui_toast("%s", UI_T(CAM_FLIPPED));
 }
 
 static void act_settings(lv_event_t *e)
@@ -123,7 +123,7 @@ static void tick(lv_timer_t *t)
 
     const int fps = svc_media_preview_fps();
     char pill[24];
-    snprintf(pill, sizeof(pill), "Live  %d fps", fps);
+    snprintf(pill, sizeof(pill), UI_T(CAM_LIVE_FPS), fps);
     ui_pill_set(s_pill, pill, fps > 0 ? UI_COL_DANGER : UI_COL_MUTED);
 
     media_record_status_t rec;
@@ -147,7 +147,7 @@ static void on_detection(void *arg, esp_event_base_t base, int32_t id, void *dat
     if (!ev || !ui_lock()) {
         return;
     }
-    ui_liveview_set_box(s_view, true, svc_detect_class_name(ev->cls),
+    ui_liveview_set_box(s_view, true, ui_tr_detect_class(ev->cls),
                         ev->x, ev->y, ev->w, ev->h);
     ui_unlock();
 }
@@ -162,7 +162,7 @@ static void build_list(lv_obj_t *parent, lv_coord_t h)
     lv_obj_set_style_pad_all(card, 5, 0);
     ui_flex_col(card, 4);
 
-    ui_label(card, "Camera List", &lv_font_montserrat_12, UI_COL_MUTED);
+    ui_label(card, UI_T(CAM_LIST), UI_FONT_12, UI_COL_MUTED);
 
     const app_settings_t *cfg = app_settings();
     for (int i = 0; i < APP_CAMERA_COUNT; i++) {
@@ -172,11 +172,11 @@ static void build_list(lv_obj_t *parent, lv_coord_t h)
         lv_obj_set_style_radius(item, 6, 0);
         lv_obj_clear_flag(item, LV_OBJ_FLAG_SCROLLABLE);
 
-        lv_obj_t *icon = ui_label(item, LV_SYMBOL_HOME, &lv_font_montserrat_12, UI_COL_TEXT);
+        lv_obj_t *icon = ui_label(item, LV_SYMBOL_HOME, UI_FONT_12, UI_COL_TEXT);
         lv_obj_align(icon, LV_ALIGN_LEFT_MID, 4, 0);
 
         lv_obj_t *name = ui_label(item, cfg->cam_names[i],
-                                  &lv_font_montserrat_12, UI_COL_TEXT);
+                                  UI_FONT_12, UI_COL_TEXT);
         lv_obj_align(name, LV_ALIGN_LEFT_MID, 22, 0);
 
         lv_obj_add_event_cb(item, select_camera, LV_EVENT_CLICKED,
@@ -198,9 +198,9 @@ static void create(lv_obj_t *parent)
     const lv_coord_t actions_h = 40;
     s_view = ui_liveview_create(parent, vw, h - actions_h - 6);
     lv_obj_align(ui_liveview_obj(s_view), LV_ALIGN_TOP_RIGHT, 0, 0);
-    ui_liveview_set_placeholder(s_view, "Starting camera...");
+    ui_liveview_set_placeholder(s_view, UI_T(LIVE_STARTING));
 
-    s_rec_badge = ui_label(ui_liveview_obj(s_view), "", &lv_font_montserrat_12,
+    s_rec_badge = ui_label(ui_liveview_obj(s_view), "", UI_FONT_12,
                            lv_color_white());
     lv_obj_set_style_bg_color(s_rec_badge, UI_COL_DANGER, 0);
     lv_obj_set_style_bg_opa(s_rec_badge, LV_OPA_COVER, 0);
@@ -220,29 +220,27 @@ static void create(lv_obj_t *parent)
 
     const struct {
         const char   *symbol;
-        const char   *caption;
+        ui_str_t      caption;
         lv_event_cb_t cb;
     } acts[] = {
-        { LV_SYMBOL_IMAGE,    "Snapshot", act_snapshot },
-        { LV_SYMBOL_VIDEO,    "Record",   act_record   },
-        { LV_SYMBOL_REFRESH,  "Flip",     act_flip     },
-        { LV_SYMBOL_SETTINGS, "Settings", act_settings },
+        { LV_SYMBOL_IMAGE,    UI_STR_CAM_SNAPSHOT, act_snapshot },
+        { LV_SYMBOL_VIDEO,    UI_STR_CAM_RECORD,   act_record   },
+        { LV_SYMBOL_REFRESH,  UI_STR_CAM_FLIP,     act_flip     },
+        { LV_SYMBOL_SETTINGS, UI_STR_CAM_SETTINGS, act_settings },
     };
+
+    s_pill = ui_pill(ui_header_slot(UI_SCREEN_CAMERA), UI_T(CAM_LIVE), UI_COL_DANGER);
 
     const lv_coord_t bw = (vw - 3 * UI_PAD) / 4;
     for (size_t i = 0; i < sizeof(acts) / sizeof(acts[0]); i++) {
-        lv_obj_t *b = ui_tile(actions, acts[i].symbol, acts[i].caption, acts[i].cb, NULL);
+        lv_obj_t *b = ui_tile(actions, acts[i].symbol, ui_tr(acts[i].caption),
+                              acts[i].cb, NULL);
         lv_obj_set_size(b, bw, actions_h);
     }
 }
 
 static void on_enter(void)
 {
-    lv_obj_t *slot = ui_header_slot(UI_SCREEN_CAMERA);
-    if (slot && !s_pill) {
-        s_pill = ui_pill(slot, "Live", UI_COL_DANGER);
-    }
-
     ui_liveview_attach_camera(s_view);
     app_event_subscribe(APP_EVT_DETECTION, on_detection, NULL);
 
@@ -263,7 +261,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_camera_def = {
-    .title    = "Camera",
+    .title    = UI_STR_TITLE_CAMERA,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

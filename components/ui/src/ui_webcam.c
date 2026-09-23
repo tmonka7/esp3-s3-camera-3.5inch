@@ -42,34 +42,30 @@ static void paint(void)
 
     if (!app_net_is_connected()) {
         lv_label_set_text(s_hint,
-                          "Wi-Fi is not connected.\n"
-                          "Settings > Network, then come back.");
+                          UI_T(WEB_HINT_NO_WIFI));
     } else if (!running) {
         lv_label_set_text(s_hint,
-                          "Start the server, then open the address\n"
-                          "in a browser or VLC on the same network.");
+                          UI_T(WEB_HINT_IDLE));
     } else if (svc_webcam_streaming()) {
-        lv_label_set_text(s_hint, "A viewer is connected.\n"
-                                  "One at a time; a second is refused.");
+        lv_label_set_text(s_hint, UI_T(WEB_HINT_VIEWER));
     } else {
-        lv_label_set_text(s_hint, "Waiting for a viewer.\n"
-                                  "/stream is MJPEG, /jpg is a single frame.");
+        lv_label_set_text(s_hint, UI_T(WEB_HINT_WAITING));
     }
 
     char stats[48];
-    snprintf(stats, sizeof(stats), "%u frames sent",
+    snprintf(stats, sizeof(stats), UI_T(WEB_FRAMES_FMT),
              (unsigned)svc_webcam_frames_sent());
     lv_label_set_text(s_stats, stats);
 
     lv_label_set_text(lv_obj_get_child(s_toggle, 0),
-                      running ? "Stop server" : "Start server");
+                      running ? UI_T(WEB_STOP) : UI_T(WEB_START));
 
     if (!running) {
-        ui_pill_set(s_pill, "Stopped", UI_COL_MUTED);
+        ui_pill_set(s_pill, UI_T(WEB_STOPPED), UI_COL_MUTED);
     } else if (svc_webcam_streaming()) {
-        ui_pill_set(s_pill, "Streaming", UI_COL_PRIMARY);
+        ui_pill_set(s_pill, UI_T(WEB_STREAMING), UI_COL_PRIMARY);
     } else {
-        ui_pill_set(s_pill, "Listening", UI_COL_INFO);
+        ui_pill_set(s_pill, UI_T(WEB_LISTENING), UI_COL_INFO);
     }
 }
 
@@ -90,10 +86,10 @@ static void toggle_clicked(lv_event_t *e)
         if (!app_net_is_connected()) {
             /* The server is genuinely up, it just has no address yet; saying
              * so beats showing a URL that cannot be reached. */
-            ui_toast("Started -- waiting for Wi-Fi");
+            ui_toast("%s", UI_T(WEB_WAIT_WIFI));
         }
     } else {
-        ui_toast("Could not start the server");
+        ui_toast("%s", UI_T(WEB_START_FAIL));
         return;
     }
 
@@ -120,7 +116,7 @@ static void port_applied(int value)
 static void port_clicked(lv_event_t *e)
 {
     (void)e;
-    ui_edit_number("Stream port", 1, 65535,
+    ui_edit_number(UI_T(WEB_STREAM_PORT), 1, 65535,
                    app_settings()->webcam_port ? app_settings()->webcam_port : 81,
                    port_applied, paint);
 }
@@ -145,26 +141,26 @@ static void create(lv_obj_t *parent)
     lv_obj_t *info = ui_card(parent, left_w, h);
     lv_obj_align(info, LV_ALIGN_TOP_LEFT, 0, 0);
 
-    ui_card_title(info, "Stream address");
+    ui_card_title(info, UI_T(WEB_STREAM_ADDR));
 
-    s_url = ui_label(info, "", &lv_font_montserrat_16, UI_COL_TEXT);
+    s_url = ui_label(info, "", UI_FONT_16, UI_COL_TEXT);
     lv_obj_set_width(s_url, left_w - 24);
     lv_label_set_long_mode(s_url, LV_LABEL_LONG_WRAP);
     lv_obj_align(s_url, LV_ALIGN_TOP_LEFT, 0, 30);
 
-    s_hint = ui_label(info, "", &lv_font_montserrat_12, UI_COL_MUTED);
+    s_hint = ui_label(info, "", UI_FONT_12, UI_COL_MUTED);
     lv_obj_set_width(s_hint, left_w - 24);
     lv_label_set_long_mode(s_hint, LV_LABEL_LONG_WRAP);
     lv_obj_align(s_hint, LV_ALIGN_TOP_LEFT, 0, 66);
 
-    s_stats = ui_label(info, "", &lv_font_montserrat_12, UI_COL_MUTED);
+    s_stats = ui_label(info, "", UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(s_stats, LV_ALIGN_TOP_LEFT, 0, 112);
 
-    s_toggle = ui_button(info, "Start server", toggle_clicked, NULL);
+    s_toggle = ui_button(info, UI_T(WEB_START), toggle_clicked, NULL);
     lv_obj_set_size(s_toggle, 150, 38);
     lv_obj_align(s_toggle, LV_ALIGN_BOTTOM_LEFT, 0, -4);
 
-    lv_obj_t *port = ui_button_soft(info, "Port", port_clicked, NULL);
+    lv_obj_t *port = ui_button_soft(info, UI_T(WEB_PORT), port_clicked, NULL);
     lv_obj_set_size(port, 90, 38);
     lv_obj_align(port, LV_ALIGN_BOTTOM_LEFT, 158, -4);
 
@@ -174,9 +170,9 @@ static void create(lv_obj_t *parent)
 
     s_view = ui_liveview_create(cam, right_w - 20, h - 20);
     lv_obj_center(ui_liveview_obj(s_view));
-    ui_liveview_set_placeholder(s_view, "Camera off");
+    ui_liveview_set_placeholder(s_view, UI_T(LIVE_CAMERA_OFF));
 
-    s_pill = ui_pill(ui_header_slot(UI_SCREEN_WEBCAM), "Stopped", UI_COL_MUTED);
+    s_pill = ui_pill(ui_header_slot(UI_SCREEN_WEBCAM), UI_T(WEB_STOPPED), UI_COL_MUTED);
 }
 
 static void on_enter(void)
@@ -203,7 +199,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_webcam_def = {
-    .title    = "Web Stream",
+    .title    = UI_STR_TITLE_WEBCAM,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

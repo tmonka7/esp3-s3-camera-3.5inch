@@ -97,9 +97,9 @@ static void open_clip(int index)
     if (media_player_open(path) == ESP_OK) {
         s_selected = index;
         refresh_list();
-        ui_pill_set(s_pill, "Playing", UI_COL_PRIMARY);
+        ui_pill_set(s_pill, UI_T(PB_PLAYING), UI_COL_PRIMARY);
     } else {
-        ui_toast("Cannot play %s", s_clips[index].name);
+        ui_toast(UI_T(PB_CANNOT_FMT), s_clips[index].name);
     }
 }
 
@@ -166,9 +166,9 @@ static void tick(lv_timer_t *t)
                       st.state == PLAYER_PLAYING ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
 
     if (st.state == PLAYER_STOPPED) {
-        ui_pill_set(s_pill, "Stopped", UI_COL_MUTED);
+        ui_pill_set(s_pill, UI_T(PB_STOPPED), UI_COL_MUTED);
     } else if (st.state == PLAYER_PAUSED) {
-        ui_pill_set(s_pill, "Paused", UI_COL_WARN);
+        ui_pill_set(s_pill, UI_T(PB_PAUSED), UI_COL_WARN);
     }
 }
 
@@ -187,17 +187,17 @@ static void create(lv_obj_t *parent)
     /* ---- video surface ---- */
     s_view = ui_liveview_create(parent, view_w, h - ctrl_h - UI_PAD);
     lv_obj_align(ui_liveview_obj(s_view), LV_ALIGN_TOP_LEFT, 0, 0);
-    ui_liveview_set_placeholder(s_view, "Pick a recording");
+    ui_liveview_set_placeholder(s_view, UI_T(PB_PICK));
 
     /* ---- transport ---- */
     lv_obj_t *ctrl = ui_card(parent, view_w, ctrl_h);
     lv_obj_set_pos(ctrl, 0, h - ctrl_h);
     lv_obj_set_style_pad_all(ctrl, 5, 0);
 
-    s_pos = ui_label(ctrl, "00:00", &lv_font_montserrat_12, UI_COL_MUTED);
+    s_pos = ui_label(ctrl, "00:00", UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(s_pos, LV_ALIGN_TOP_LEFT, 2, 0);
 
-    s_dur = ui_label(ctrl, "00:00", &lv_font_montserrat_12, UI_COL_MUTED);
+    s_dur = ui_label(ctrl, "00:00", UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(s_dur, LV_ALIGN_TOP_RIGHT, -2, 0);
 
     s_slider = lv_slider_create(ctrl);
@@ -241,16 +241,16 @@ static void create(lv_obj_t *parent)
         lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
 
-        lv_obj_t *icon = ui_label(row, LV_SYMBOL_PLAY, &lv_font_montserrat_14,
+        lv_obj_t *icon = ui_label(row, LV_SYMBOL_PLAY, UI_FONT_14,
                                   UI_COL_PRIMARY);
         lv_obj_align(icon, LV_ALIGN_LEFT_MID, 5, 0);
 
-        lv_obj_t *title = ui_label(row, "", &lv_font_montserrat_12, UI_COL_TEXT);
+        lv_obj_t *title = ui_label(row, "", UI_FONT_12, UI_COL_TEXT);
         lv_label_set_long_mode(title, LV_LABEL_LONG_DOT);
         lv_obj_set_width(title, list_w - 46);
         lv_obj_align(title, LV_ALIGN_LEFT_MID, 26, -7);
 
-        lv_obj_t *sub = ui_label(row, "", &lv_font_montserrat_12, UI_COL_MUTED);
+        lv_obj_t *sub = ui_label(row, "", UI_FONT_12, UI_COL_MUTED);
         lv_obj_align(sub, LV_ALIGN_LEFT_MID, 26, 8);
 
         lv_obj_add_event_cb(row, row_clicked, LV_EVENT_CLICKED, (void *)(intptr_t)i);
@@ -267,15 +267,12 @@ static void create(lv_obj_t *parent)
                                    (void *)(intptr_t)-LIST_ROWS), 60, 24);
     lv_obj_set_size(ui_button_soft(nav, LV_SYMBOL_DOWN, scroll_clicked,
                                    (void *)(intptr_t)LIST_ROWS), 60, 24);
+
+    s_pill = ui_pill(ui_header_slot(UI_SCREEN_PLAYBACK), UI_T(PB_STOPPED), UI_COL_MUTED);
 }
 
 static void on_enter(void)
 {
-    lv_obj_t *slot = ui_header_slot(UI_SCREEN_PLAYBACK);
-    if (slot && !s_pill) {
-        s_pill = ui_pill(slot, "Stopped", UI_COL_MUTED);
-    }
-
     if (!s_clips) {
         s_clips = calloc(MEDIA_MAX_ENTRIES, sizeof(media_entry_t));
     }
@@ -305,7 +302,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_playback_def = {
-    .title    = "Video Playback",
+    .title    = UI_STR_TITLE_PLAYBACK,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

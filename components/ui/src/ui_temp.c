@@ -65,7 +65,7 @@ static void apply_status(const temp_status_t *st)
         if (st->indoor_valid) {
             format_c10(st->indoor_c10, buf, sizeof(buf));
         } else {
-            snprintf(buf, sizeof(buf), "no sensor");
+            strlcpy(buf, UI_T(TMP_NO_SENSOR), sizeof(buf));
         }
         ui_pill_set(s_indoor_pill, buf,
                     st->indoor_valid ? UI_COL_PRIMARY : UI_COL_MUTED);
@@ -146,10 +146,10 @@ static void create(lv_obj_t *parent)
     lv_obj_remove_style(s_arc, NULL, LV_PART_KNOB);
     lv_obj_clear_flag(s_arc, LV_OBJ_FLAG_CLICKABLE);
 
-    s_value = ui_label(gauge, "--.- C", &lv_font_montserrat_32, UI_COL_TEXT);
+    s_value = ui_label(gauge, "--.- C", UI_FONT_32, UI_COL_TEXT);
     lv_obj_align(s_value, LV_ALIGN_CENTER, 0, -6);
 
-    lv_obj_t *cap = ui_label(gauge, "Indoor Temperature", &lv_font_montserrat_12,
+    lv_obj_t *cap = ui_label(gauge, UI_T(TMP_INDOOR), UI_FONT_12,
                              UI_COL_MUTED);
     lv_obj_align(cap, LV_ALIGN_CENTER, 0, 22);
 
@@ -158,25 +158,25 @@ static void create(lv_obj_t *parent)
 
     lv_obj_t *hum = ui_card(parent, side_w, card_h);
     lv_obj_set_pos(hum, main_w + UI_PAD, 0);
-    lv_obj_t *hicon = ui_label(hum, LV_SYMBOL_TINT, &lv_font_montserrat_20, UI_COL_INFO);
+    lv_obj_t *hicon = ui_label(hum, LV_SYMBOL_TINT, UI_FONT_20, UI_COL_INFO);
     lv_obj_align(hicon, LV_ALIGN_LEFT_MID, 2, 0);
-    lv_obj_t *hcap = ui_label(hum, "Humidity", &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *hcap = ui_label(hum, UI_T(TMP_HUMIDITY), UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(hcap, LV_ALIGN_TOP_RIGHT, 0, 2);
-    s_humidity = ui_label(hum, "--%", &lv_font_montserrat_20, UI_COL_TEXT);
+    s_humidity = ui_label(hum, "--%", UI_FONT_20, UI_COL_TEXT);
     lv_obj_align(s_humidity, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 
     lv_obj_t *out = ui_card(parent, side_w, card_h);
     lv_obj_set_pos(out, main_w + UI_PAD, card_h + UI_PAD);
-    lv_obj_t *oicon = ui_label(out, LV_SYMBOL_EYE_OPEN, &lv_font_montserrat_20, UI_COL_WARN);
+    lv_obj_t *oicon = ui_label(out, LV_SYMBOL_EYE_OPEN, UI_FONT_20, UI_COL_WARN);
     lv_obj_align(oicon, LV_ALIGN_LEFT_MID, 2, 0);
-    lv_obj_t *ocap = ui_label(out, "Outdoor", &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *ocap = ui_label(out, UI_T(TMP_OUTDOOR), UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(ocap, LV_ALIGN_TOP_RIGHT, 0, 2);
-    s_outdoor = ui_label(out, "--.- C", &lv_font_montserrat_20, UI_COL_TEXT);
+    s_outdoor = ui_label(out, "--.- C", UI_FONT_20, UI_COL_TEXT);
     lv_obj_align(s_outdoor, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 
     lv_obj_t *sp = ui_card(parent, side_w, card_h);
     lv_obj_set_pos(sp, main_w + UI_PAD, 2 * (card_h + UI_PAD));
-    lv_obj_t *scap = ui_label(sp, "Set Temperature", &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *scap = ui_label(sp, UI_T(TMP_SETPOINT), UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(scap, LV_ALIGN_TOP_LEFT, 0, 0);
 
     lv_obj_t *minus = ui_button_soft(sp, "-", nudge, (void *)(intptr_t)-5);
@@ -187,7 +187,7 @@ static void create(lv_obj_t *parent)
     lv_obj_set_size(plus, 34, 28);
     lv_obj_align(plus, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 
-    s_setpoint = ui_label(sp, "--.- C", &lv_font_montserrat_16, UI_COL_TEXT);
+    s_setpoint = ui_label(sp, "--.- C", UI_FONT_16, UI_COL_TEXT);
     lv_obj_align(s_setpoint, LV_ALIGN_BOTTOM_MID, 0, -4);
 
     /* ---- room tabs ---- */
@@ -197,6 +197,8 @@ static void create(lv_obj_t *parent)
     lv_obj_align(s_tabs, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_clear_flag(s_tabs, LV_OBJ_FLAG_SCROLLABLE);
     ui_flex_row(s_tabs, 4);
+
+    s_indoor_pill = ui_pill(ui_header_slot(UI_SCREEN_TEMP), "--.- C", UI_COL_MUTED);
 
     const lv_coord_t tab_w = (main_w - 3 * 4) / SVC_TEMP_ROOMS;
     for (int i = 0; i < SVC_TEMP_ROOMS; i++) {
@@ -208,7 +210,7 @@ static void create(lv_obj_t *parent)
         lv_obj_set_style_bg_opa(tab, LV_OPA_COVER, 0);
         lv_obj_clear_flag(tab, LV_OBJ_FLAG_SCROLLABLE);
 
-        lv_obj_t *lbl = ui_label(tab, svc_temp_room_name(i), &lv_font_montserrat_12,
+        lv_obj_t *lbl = ui_label(tab, svc_temp_room_name(i), UI_FONT_12,
                                  i == 0 ? lv_color_white() : UI_COL_MUTED);
         lv_obj_center(lbl);
 
@@ -218,11 +220,6 @@ static void create(lv_obj_t *parent)
 
 static void on_enter(void)
 {
-    lv_obj_t *slot = ui_header_slot(UI_SCREEN_TEMP);
-    if (slot && !s_indoor_pill) {
-        s_indoor_pill = ui_pill(slot, "--.- C", UI_COL_MUTED);
-    }
-
     refresh();
     app_event_subscribe(APP_EVT_TEMP_UPDATE, on_temp, NULL);
 }
@@ -233,7 +230,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_temp_def = {
-    .title    = "Temperature",
+    .title    = UI_STR_TITLE_TEMP,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

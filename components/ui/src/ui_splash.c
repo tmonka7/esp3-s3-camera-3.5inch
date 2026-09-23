@@ -15,14 +15,14 @@ static void create(lv_obj_t *scr)
     lv_obj_set_style_bg_grad_color(scr, lv_color_hex(0xDCEDE2), 0);
     lv_obj_set_style_bg_grad_dir(scr, LV_GRAD_DIR_VER, 0);
 
-    lv_obj_t *mark = ui_label(scr, LV_SYMBOL_WIFI, &lv_font_montserrat_48, UI_COL_PRIMARY);
+    lv_obj_t *mark = ui_label(scr, LV_SYMBOL_WIFI, UI_FONT_48, UI_COL_PRIMARY);
     lv_obj_align(mark, LV_ALIGN_CENTER, 0, -78);
 
-    lv_obj_t *title = ui_label(scr, "Home Automation", &lv_font_montserrat_32, UI_COL_TEXT);
+    lv_obj_t *title = ui_label(scr, UI_T(TITLE_SPLASH), UI_FONT_32, UI_COL_TEXT);
     lv_obj_align(title, LV_ALIGN_CENTER, 0, -26);
 
-    lv_obj_t *tag = ui_label(scr, "Smart Home  -  Smarter Life",
-                             &lv_font_montserrat_14, UI_COL_MUTED);
+    lv_obj_t *tag = ui_label(scr, UI_T(SPLASH_TAGLINE),
+                             UI_FONT_14, UI_COL_MUTED);
     lv_obj_align(tag, LV_ALIGN_CENTER, 0, 4);
 
     s_bar = lv_bar_create(scr);
@@ -35,14 +35,14 @@ static void create(lv_obj_t *scr)
     lv_bar_set_range(s_bar, 0, 100);
     lv_bar_set_value(s_bar, 0, LV_ANIM_OFF);
 
-    s_status = ui_label(scr, "Initializing system...", &lv_font_montserrat_12, UI_COL_MUTED);
+    s_status = ui_label(scr, UI_T(SPLASH_INIT), UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(s_status, LV_ALIGN_CENTER, 0, 72);
 
-    lv_obj_t *ver = ui_label(scr, APP_VERSION, &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *ver = ui_label(scr, APP_VERSION, UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(ver, LV_ALIGN_TOP_RIGHT, -10, 8);
 
     lv_obj_t *board = ui_label(scr, "ESP32-S3-Touch-LCD-3.5-C",
-                               &lv_font_montserrat_12, UI_COL_MUTED);
+                               UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(board, LV_ALIGN_BOTTOM_MID, 0, -8);
 }
 
@@ -64,7 +64,7 @@ void ui_splash_progress(int percent, const char *message)
 }
 
 const ui_screen_def_t ui_screen_splash_def = {
-    .title      = "Home Automation",
+    .title      = UI_STR_TITLE_SPLASH,
     .full_bleed = true,
     .create     = create,
 };

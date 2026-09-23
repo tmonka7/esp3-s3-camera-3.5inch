@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "lvgl.h"
 #include "esp_err.h"
+#include "ui_i18n.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,7 +40,9 @@ typedef enum {
  * pump, the player, a refresh timer).
  */
 typedef struct {
-    const char *title;
+    /* Looked up through ui_tr() when the header is built, so the title
+     * follows the language like every other string. */
+    ui_str_t title;
     /** Splash and Home draw their own chrome, so they get the bare screen
      *  object instead of a content area below the standard header. */
     bool   full_bleed;

@@ -110,11 +110,11 @@ ui_liveview_t *ui_liveview_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h)
      * more than it is worth at 10-20 fps on this panel. */
     lv_img_set_antialias(lv->img, false);
 
-    lv->placeholder = ui_label(lv->root, "Camera off", &lv_font_montserrat_14,
+    lv->placeholder = ui_label(lv->root, UI_T(LIVE_CAMERA_OFF), UI_FONT_14,
                                lv_color_hex(0x8A94A0));
     lv_obj_center(lv->placeholder);
 
-    lv->caption = ui_label(lv->root, "", &lv_font_montserrat_12, lv_color_white());
+    lv->caption = ui_label(lv->root, "", UI_FONT_12, lv_color_white());
     lv_obj_align(lv->caption, LV_ALIGN_TOP_LEFT, 6, 5);
     lv_obj_set_style_bg_color(lv->caption, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(lv->caption, LV_OPA_50, 0);
@@ -131,7 +131,7 @@ ui_liveview_t *ui_liveview_create(lv_obj_t *parent, lv_coord_t w, lv_coord_t h)
     lv_obj_clear_flag(lv->box, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(lv->box, LV_OBJ_FLAG_HIDDEN);
 
-    lv->box_label = ui_label(lv->root, "", &lv_font_montserrat_12, lv_color_white());
+    lv->box_label = ui_label(lv->root, "", UI_FONT_12, lv_color_white());
     lv_obj_set_style_bg_color(lv->box_label, UI_COL_PRIMARY, 0);
     lv_obj_set_style_bg_opa(lv->box_label, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_hor(lv->box_label, 4, 0);

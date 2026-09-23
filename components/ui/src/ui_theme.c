@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "ui_theme.h"
+#include "ui_i18n.h"
 
 /* Styles are shared by every widget built from a recipe below, so they are
  * created once and never freed. */
@@ -19,6 +20,19 @@ void ui_theme_init(void)
     if (s_ready) {
         return;
     }
+
+    /* Widgets that pick no font of their own -- the keyboard, drop-downs,
+     * rollers, text areas -- inherit the theme's. Re-run the default theme
+     * with the active language's face so those render Japanese too; the
+     * colours are the ones LVGL applied when the display was registered, so
+     * nothing else about the theme moves. */
+    lv_disp_t *disp = lv_disp_get_default();
+    lv_theme_t *theme = lv_theme_default_init(disp,
+                                              lv_palette_main(LV_PALETTE_BLUE),
+                                              lv_palette_main(LV_PALETTE_RED),
+                                              LV_THEME_DEFAULT_DARK,
+                                              ui_i18n_base_font());
+    lv_disp_set_theme(disp, theme);
 
     lv_obj_t *scr = lv_scr_act();
     lv_obj_set_style_bg_color(scr, UI_COL_BG, 0);
@@ -135,7 +149,7 @@ lv_obj_t *ui_label(lv_obj_t *parent, const char *text,
 
 lv_obj_t *ui_card_title(lv_obj_t *parent, const char *text)
 {
-    return ui_label(parent, text, &lv_font_montserrat_14, UI_COL_TEXT);
+    return ui_label(parent, text, UI_FONT_14, UI_COL_TEXT);
 }
 
 static lv_obj_t *make_button(lv_obj_t *parent, const char *text, lv_style_t *style,
@@ -149,7 +163,7 @@ static lv_obj_t *make_button(lv_obj_t *parent, const char *text, lv_style_t *sty
 
     lv_obj_t *lbl = lv_label_create(btn);
     lv_label_set_text(lbl, text ? text : "");
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(lbl, UI_FONT_14, 0);
     lv_obj_center(lbl);
 
     if (cb) {
@@ -183,12 +197,12 @@ lv_obj_t *ui_tile(lv_obj_t *parent, const char *symbol, const char *caption,
 
     lv_obj_t *icon = lv_label_create(tile);
     lv_label_set_text(icon, symbol ? symbol : "");
-    lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(icon, UI_FONT_20, 0);
     lv_obj_set_style_text_color(icon, lv_color_white(), 0);
 
     lv_obj_t *lbl = lv_label_create(tile);
     lv_label_set_text(lbl, caption ? caption : "");
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(lbl, UI_FONT_12, 0);
     lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
 
     if (cb) {
@@ -208,7 +222,7 @@ lv_obj_t *ui_pill(lv_obj_t *parent, const char *text, lv_color_t color)
 
     lv_obj_t *lbl = lv_label_create(pill);
     lv_label_set_text(lbl, text ? text : "");
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(lbl, UI_FONT_12, 0);
     lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
     lv_obj_center(lbl);
 
@@ -240,14 +254,14 @@ lv_obj_t *ui_list_row(lv_obj_t *parent, const char *label, const char *value,
     /* Bottom hairline only; the last row's is harmless against the card edge. */
     lv_obj_set_style_border_width(row, 1, 0);
 
-    lv_obj_t *name = ui_label(row, label, &lv_font_montserrat_14, UI_COL_TEXT);
+    lv_obj_t *name = ui_label(row, label, UI_FONT_14, UI_COL_TEXT);
     lv_obj_align(name, LV_ALIGN_LEFT_MID, 0, 0);
 
-    lv_obj_t *chevron = ui_label(row, LV_SYMBOL_RIGHT, &lv_font_montserrat_12, UI_COL_MUTED);
+    lv_obj_t *chevron = ui_label(row, LV_SYMBOL_RIGHT, UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(chevron, LV_ALIGN_RIGHT_MID, 0, 0);
 
     /* Child index 2 -- ui_list_row_set_value() relies on this ordering. */
-    lv_obj_t *val = ui_label(row, value, &lv_font_montserrat_14, UI_COL_MUTED);
+    lv_obj_t *val = ui_label(row, value, UI_FONT_14, UI_COL_MUTED);
     lv_obj_align_to(val, chevron, LV_ALIGN_OUT_LEFT_MID, -6, 0);
 
     if (cb) {

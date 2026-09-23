@@ -52,20 +52,20 @@ static void refresh_capacity(void)
 {
     bsp_storage_info_t info;
     if (bsp_storage_info(&info) != ESP_OK) {
-        ui_pill_set(s_pill, "No card", UI_COL_DANGER);
-        lv_label_set_text(s_usage, "No TF card");
+        ui_pill_set(s_pill, UI_T(STO_NO_CARD), UI_COL_DANGER);
+        lv_label_set_text(s_usage, UI_T(STO_NO_TF_CARD));
         lv_bar_set_value(s_bar, 0, LV_ANIM_OFF);
         return;
     }
 
-    ui_pill_set(s_pill, "TF Card", UI_COL_PRIMARY);
+    ui_pill_set(s_pill, UI_T(STO_TF_CARD), UI_COL_PRIMARY);
 
     const unsigned used_gb  = (unsigned)(info.used_bytes  >> 30);
     const unsigned used_mb  = (unsigned)((info.used_bytes  >> 20) % 1024);
     const unsigned total_gb = (unsigned)(info.total_bytes >> 30);
 
     char buf[48];
-    snprintf(buf, sizeof(buf), "Used %u.%u GB / %u GB",
+    snprintf(buf, sizeof(buf), UI_T(STO_USED_FMT),
              used_gb, (used_mb * 10) / 1024, total_gb);
     lv_label_set_text(s_usage, buf);
 
@@ -105,8 +105,8 @@ static void set_row(int i, const media_day_t *day)
     media_files_format_size((uint32_t)day->bytes, size, sizeof(size));
 
     char detail[48];
-    snprintf(detail, sizeof(detail), "%s  %u items  %s",
-             video ? "Video" : "Image", day->count, size);
+    snprintf(detail, sizeof(detail), UI_T(STO_DAY_FMT),
+             video ? UI_T(STO_VIDEO) : UI_T(STO_IMAGE), day->count, size);
     lv_label_set_text(sub, detail);
 }
 
@@ -136,8 +136,8 @@ static void refresh(void)
         if (s_day_count == 0) {
             lv_obj_clear_flag(s_empty, LV_OBJ_FLAG_HIDDEN);
             lv_label_set_text(s_empty, bsp_storage_mounted()
-                                       ? "Nothing recorded yet"
-                                       : "Insert a TF card");
+                                       ? UI_T(STO_NOTHING)
+                                       : UI_T(STO_INSERT));
         } else {
             lv_obj_add_flag(s_empty, LV_OBJ_FLAG_HIDDEN);
         }
@@ -159,7 +159,7 @@ static void row_clicked(lv_event_t *e)
     if (s_days[idx].kind == MEDIA_KIND_VIDEO) {
         ui_show(UI_SCREEN_PLAYBACK);
     } else {
-        ui_toast("%s: %u images", s_days[idx].date, s_days[idx].count);
+        ui_toast(UI_T(STO_IMG_COUNT_FMT), s_days[idx].date, s_days[idx].count);
     }
 }
 
@@ -197,7 +197,9 @@ static void create(lv_obj_t *parent)
     lv_obj_set_style_pad_all(tabs, 5, 0);
     ui_flex_col(tabs, 4);
 
-    static const char *k_tab_names[3] = { "Files", "Videos", "Images" };
+    const ui_str_t k_tab_names[3] = {
+        UI_STR_STO_FILES, UI_STR_STO_VIDEOS, UI_STR_STO_IMAGES,
+    };
     static const char *k_tab_icons[3] = {
         LV_SYMBOL_DIRECTORY, LV_SYMBOL_VIDEO, LV_SYMBOL_IMAGE,
     };
@@ -211,11 +213,11 @@ static void create(lv_obj_t *parent)
         lv_obj_set_style_bg_opa(tab, LV_OPA_COVER, 0);
         lv_obj_clear_flag(tab, LV_OBJ_FLAG_SCROLLABLE);
 
-        lv_obj_t *lbl = ui_label(tab, k_tab_names[i], &lv_font_montserrat_12,
+        lv_obj_t *lbl = ui_label(tab, ui_tr(k_tab_names[i]), UI_FONT_12,
                                  i == 0 ? lv_color_white() : UI_COL_MUTED);
         lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 24, 0);
 
-        lv_obj_t *icon = ui_label(tab, k_tab_icons[i], &lv_font_montserrat_12,
+        lv_obj_t *icon = ui_label(tab, k_tab_icons[i], UI_FONT_12,
                                   i == 0 ? lv_color_white() : UI_COL_MUTED);
         lv_obj_align(icon, LV_ALIGN_LEFT_MID, 5, 0);
 
@@ -242,17 +244,17 @@ static void create(lv_obj_t *parent)
         lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
 
-        lv_obj_t *icon = ui_label(row, LV_SYMBOL_VIDEO, &lv_font_montserrat_16,
+        lv_obj_t *icon = ui_label(row, LV_SYMBOL_VIDEO, UI_FONT_16,
                                   UI_COL_PRIMARY);
         lv_obj_align(icon, LV_ALIGN_LEFT_MID, 6, 0);
 
-        lv_obj_t *title = ui_label(row, "", &lv_font_montserrat_12, UI_COL_TEXT);
+        lv_obj_t *title = ui_label(row, "", UI_FONT_12, UI_COL_TEXT);
         lv_obj_align(title, LV_ALIGN_LEFT_MID, 32, -7);
 
-        lv_obj_t *sub = ui_label(row, "", &lv_font_montserrat_12, UI_COL_MUTED);
+        lv_obj_t *sub = ui_label(row, "", UI_FONT_12, UI_COL_MUTED);
         lv_obj_align(sub, LV_ALIGN_LEFT_MID, 32, 8);
 
-        lv_obj_t *chev = ui_label(row, LV_SYMBOL_RIGHT, &lv_font_montserrat_12,
+        lv_obj_t *chev = ui_label(row, LV_SYMBOL_RIGHT, UI_FONT_12,
                                   UI_COL_MUTED);
         lv_obj_align(chev, LV_ALIGN_RIGHT_MID, -6, 0);
 
@@ -260,7 +262,7 @@ static void create(lv_obj_t *parent)
         s_rows[i] = row;
     }
 
-    s_empty = ui_label(list, "Insert a TF card", &lv_font_montserrat_14, UI_COL_MUTED);
+    s_empty = ui_label(list, UI_T(STO_INSERT), UI_FONT_14, UI_COL_MUTED);
     lv_obj_add_flag(s_empty, LV_OBJ_FLAG_IGNORE_LAYOUT);
     lv_obj_center(s_empty);
 
@@ -269,7 +271,7 @@ static void create(lv_obj_t *parent)
     lv_obj_align(strip, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
     lv_obj_set_style_pad_all(strip, 4, 0);
 
-    s_usage = ui_label(strip, "--", &lv_font_montserrat_12, UI_COL_MUTED);
+    s_usage = ui_label(strip, "--", UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(s_usage, LV_ALIGN_LEFT_MID, 2, 0);
 
     s_bar = lv_bar_create(strip);
@@ -288,15 +290,12 @@ static void create(lv_obj_t *parent)
                                     (void *)(intptr_t)VISIBLE_ROWS);
     lv_obj_set_size(down, 22, 22);
     lv_obj_align(down, LV_ALIGN_RIGHT_MID, 0, 0);
+
+    s_pill = ui_pill(ui_header_slot(UI_SCREEN_STORAGE), UI_T(STO_TF_CARD), UI_COL_MUTED);
 }
 
 static void on_enter(void)
 {
-    lv_obj_t *slot = ui_header_slot(UI_SCREEN_STORAGE);
-    if (slot && !s_pill) {
-        s_pill = ui_pill(slot, "TF Card", UI_COL_MUTED);
-    }
-
     if (!s_entries) {
         /* One allocation reused for every listing; freed when the screen is
          * left so a rarely-visited page does not hold 20 KB permanently. */
@@ -314,7 +313,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_storage_def = {
-    .title    = "Storage",
+    .title    = UI_STR_TITLE_STORAGE,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
         "src/ui_main.c"
+        "src/ui_i18n.c"
         "src/ui_theme.c"
         "src/ui_liveview.c"
         "src/ui_splash.c"
@@ -21,6 +22,12 @@ idf_component_register(
         "src/ui_cards.c"
         "src/ui_faces.c"
         "src/ui_webcam.c"
+        "src/fonts/ui_font_ja_12.c"
+        "src/fonts/ui_font_ja_14.c"
+        "src/fonts/ui_font_ja_16.c"
+        "src/fonts/ui_font_ja_20.c"
+        "src/fonts/ui_font_ja_24.c"
+        "src/fonts/ui_font_ja_32.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
     REQUIRES

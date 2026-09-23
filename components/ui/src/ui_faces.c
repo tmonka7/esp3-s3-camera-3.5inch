@@ -25,6 +25,15 @@ static bool           s_was_enrolling;
 
 static void build_list(void);
 
+/** "+ Enrol a face" -- the glyph is fixed, the caption is translated, so
+ *  the two are joined at run time into a buffer that outlives the call. */
+static const char *enrol_label(void)
+{
+    static char label[48];
+    snprintf(label, sizeof(label), LV_SYMBOL_PLUS "%s", UI_T(FACE_ENROL_BTN));
+    return label;
+}
+
 /* --------------------------------------------------------------------------
  * Enrolment
  * ------------------------------------------------------------------------ */
@@ -37,13 +46,13 @@ static void apply_name(const char *text)
     switch (svc_face_enroll_begin(text)) {
     case ESP_OK:
         s_was_enrolling = true;
-        ui_toast("Look at the camera");
+        ui_toast("%s", UI_T(FACE_LOOK));
         break;
     case ESP_ERR_NO_MEM:
-        ui_toast("No room for another face");
+        ui_toast("%s", UI_T(FACE_NO_ROOM));
         break;
     default:
-        ui_toast("Recogniser is not running");
+        ui_toast("%s", UI_T(FACE_NOT_RUNNING));
         break;
     }
 }
@@ -55,10 +64,10 @@ static void enrol_clicked(lv_event_t *e)
     if (svc_face_enrolling()) {
         svc_face_enroll_cancel();
         s_was_enrolling = false;
-        ui_toast("Cancelled");
+        ui_toast("%s", UI_T(FACE_CANCELLED));
         return;
     }
-    ui_edit_text("Whose face is this?", "", false, apply_name, NULL);
+    ui_edit_text(UI_T(FACE_WHOSE), "", false, apply_name, NULL);
 }
 
 static void delete_clicked(lv_event_t *e)
@@ -66,10 +75,10 @@ static void delete_clicked(lv_event_t *e)
     const size_t index = (size_t)(uintptr_t)lv_event_get_user_data(e);
 
     if (svc_face_subject_remove(index) == ESP_OK) {
-        ui_toast("Removed");
+        ui_toast("%s", UI_T(FACE_REMOVED));
         build_list();
     } else {
-        ui_toast("Could not remove");
+        ui_toast("%s", UI_T(FACE_REMOVE_FAIL));
     }
 }
 
@@ -88,31 +97,31 @@ static void paint_status(const face_status_t *st)
     if (enrolling) {
         const uint8_t got = svc_face_enroll_progress();
         if (st && st->face_found) {
-            snprintf(text, sizeof(text), "Hold still  -  %u of %d",
+            snprintf(text, sizeof(text), UI_T(FACE_HOLD_FMT),
                      (unsigned)got, FACE_SAMPLES_PER);
         } else {
-            snprintf(text, sizeof(text), "No face in view  -  %u of %d",
+            snprintf(text, sizeof(text), UI_T(FACE_NO_FACE_FMT),
                      (unsigned)got, FACE_SAMPLES_PER);
         }
         lv_bar_set_value(s_bar, got, LV_ANIM_ON);
     } else if (st && st->match_id) {
-        snprintf(text, sizeof(text), "%s  (%u%%)", st->match_name,
+        snprintf(text, sizeof(text), UI_T(FACE_CONF_FMT), st->match_name,
                  (unsigned)st->confidence);
         lv_bar_set_value(s_bar, 0, LV_ANIM_OFF);
     } else if (st && st->face_found) {
-        strlcpy(text, "Face seen, not recognised", sizeof(text));
+        strlcpy(text, UI_T(FACE_SEEN), sizeof(text));
         lv_bar_set_value(s_bar, 0, LV_ANIM_OFF);
     } else if (svc_face_is_enabled()) {
-        strlcpy(text, "Watching", sizeof(text));
+        strlcpy(text, UI_T(FACE_WATCHING), sizeof(text));
         lv_bar_set_value(s_bar, 0, LV_ANIM_OFF);
     } else {
-        strlcpy(text, "Face unlock is off", sizeof(text));
+        strlcpy(text, UI_T(FACE_UNLOCK_OFF), sizeof(text));
         lv_bar_set_value(s_bar, 0, LV_ANIM_OFF);
     }
 
     lv_label_set_text(s_status, text);
     lv_label_set_text(lv_obj_get_child(s_enrol_btn, 0),
-                      enrolling ? "Cancel" : LV_SYMBOL_PLUS " Enrol a face");
+                      enrolling ? UI_T(CANCEL) : enrol_label());
 }
 
 /** The box arrives in analysis-frame pixels; the widget wants per mille. */
@@ -144,12 +153,12 @@ static void add_row(size_t index, const face_subject_t *s)
     lv_obj_set_style_border_color(row, UI_COL_TRACK, 0);
     lv_obj_set_style_border_width(row, 1, 0);
 
-    lv_obj_t *name = ui_label(row, s->name, &lv_font_montserrat_14, UI_COL_TEXT);
+    lv_obj_t *name = ui_label(row, s->name, UI_FONT_14, UI_COL_TEXT);
     lv_obj_align(name, LV_ALIGN_TOP_LEFT, 4, 3);
 
     char detail[40];
-    snprintf(detail, sizeof(detail), "%u shots", (unsigned)s->samples);
-    lv_obj_t *sub = ui_label(row, detail, &lv_font_montserrat_12, UI_COL_MUTED);
+    snprintf(detail, sizeof(detail), UI_T(FACE_SHOTS_FMT), (unsigned)s->samples);
+    lv_obj_t *sub = ui_label(row, detail, UI_FONT_12, UI_COL_MUTED);
     lv_obj_align(sub, LV_ALIGN_TOP_LEFT, 4, 22);
 
     lv_obj_t *bin = ui_button_soft(row, LV_SYMBOL_TRASH, delete_clicked,
@@ -169,10 +178,8 @@ static void build_list(void)
     const size_t n = svc_face_subject_count();
     if (n == 0) {
         lv_obj_t *empty = ui_label(s_list,
-                                   "Nobody enrolled.\n\n"
-                                   "Enrol a face, then turn on Face Entry\n"
-                                   "in Settings > Access.",
-                                   &lv_font_montserrat_12, UI_COL_MUTED);
+                                   UI_T(FACE_EMPTY),
+                                   UI_FONT_12, UI_COL_MUTED);
         lv_obj_set_width(empty, LV_PCT(100));
         return;
     }
@@ -211,8 +218,8 @@ static void on_face(void *arg, esp_event_base_t base, int32_t id, void *data)
 
     if (finished) {
         ui_toast(svc_face_enroll_progress() >= FACE_SAMPLES_PER
-                     ? "Face enrolled"
-                     : "Enrolment gave up -- try again in better light");
+                     ? UI_T(FACE_DONE)
+                     : UI_T(FACE_GAVE_UP));
     }
 }
 
@@ -230,9 +237,9 @@ static void create(lv_obj_t *parent)
 
     s_view = ui_liveview_create(cam, left_w - 24, 150);
     lv_obj_align(ui_liveview_obj(s_view), LV_ALIGN_TOP_MID, 0, 4);
-    ui_liveview_set_placeholder(s_view, "Camera off");
+    ui_liveview_set_placeholder(s_view, UI_T(LIVE_CAMERA_OFF));
 
-    s_status = ui_label(cam, "", &lv_font_montserrat_12, UI_COL_TEXT);
+    s_status = ui_label(cam, "", UI_FONT_12, UI_COL_TEXT);
     lv_obj_align(s_status, LV_ALIGN_TOP_MID, 0, 160);
 
     s_bar = lv_bar_create(cam);
@@ -241,14 +248,14 @@ static void create(lv_obj_t *parent)
     lv_bar_set_range(s_bar, 0, FACE_SAMPLES_PER);
     lv_bar_set_value(s_bar, 0, LV_ANIM_OFF);
 
-    s_enrol_btn = ui_button(cam, LV_SYMBOL_PLUS " Enrol a face",
+    s_enrol_btn = ui_button(cam, enrol_label(),
                             enrol_clicked, NULL);
     lv_obj_set_size(s_enrol_btn, left_w - 28, 38);
     lv_obj_align(s_enrol_btn, LV_ALIGN_BOTTOM_MID, 0, -4);
 
     lv_obj_t *card = ui_card(parent, right_w, h);
     lv_obj_align(card, LV_ALIGN_TOP_RIGHT, 0, 0);
-    ui_card_title(card, "Enrolled");
+    ui_card_title(card, UI_T(FACE_ENROLLED));
 
     s_list = lv_obj_create(card);
     lv_obj_remove_style_all(s_list);
@@ -265,7 +272,7 @@ static void on_enter(void)
     if (svc_face_ready()) {
         ui_pill_set(s_pill, "LBPH", UI_COL_PRIMARY);
     } else {
-        ui_pill_set(s_pill, "Unavailable", UI_COL_DANGER);
+        ui_pill_set(s_pill, UI_T(UNAVAILABLE), UI_COL_DANGER);
     }
 
     build_list();
@@ -291,7 +298,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_faces_def = {
-    .title    = "Faces",
+    .title    = UI_STR_TITLE_FACES,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,

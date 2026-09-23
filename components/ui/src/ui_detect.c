@@ -56,7 +56,7 @@ static void set_row(int i, const detect_event_t *ev)
     lv_obj_clear_flag(row, LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text(icon, class_symbol(ev->cls));
     lv_obj_set_style_text_color(icon, class_color(ev->cls), 0);
-    lv_label_set_text(title, svc_detect_class_name(ev->cls));
+    lv_label_set_text(title, ui_tr_detect_class(ev->cls));
     lv_label_set_text(stamp, ev->stamp);
 }
 
@@ -90,7 +90,7 @@ static void on_detection(void *arg, esp_event_base_t base, int32_t id, void *dat
         return;
     }
 
-    ui_liveview_set_box(s_view, true, svc_detect_class_name(ev->cls),
+    ui_liveview_set_box(s_view, true, ui_tr_detect_class(ev->cls),
                         ev->x, ev->y, ev->w, ev->h);
     refresh_list();
 
@@ -109,7 +109,7 @@ static void detect_toggled(lv_event_t *e)
 {
     const bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
     svc_detect_set_enabled(on);
-    ui_toast(on ? "Detection on" : "Detection off");
+    ui_toast("%s", on ? UI_T(DET_ON) : UI_T(DET_OFF));
 }
 
 static void notify_toggled(lv_event_t *e)
@@ -117,7 +117,7 @@ static void notify_toggled(lv_event_t *e)
     const bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
     app_settings()->detect_notify = on;
     app_settings_commit_deferred();
-    ui_toast(on ? "Alerts on" : "Alerts off");
+    ui_toast("%s", on ? UI_T(DET_ALERTS_ON) : UI_T(DET_ALERTS_OFF));
 }
 
 static void open_settings(lv_event_t *e)
@@ -135,7 +135,7 @@ static void build_toggle_row(lv_obj_t *parent, lv_coord_t w, lv_coord_t y)
     lv_obj_set_pos(bar, 0, y);
     lv_obj_set_style_pad_all(bar, 4, 0);
 
-    lv_obj_t *l1 = ui_label(bar, "Detection", &lv_font_montserrat_12, UI_COL_TEXT);
+    lv_obj_t *l1 = ui_label(bar, UI_T(SET_DETECTION), UI_FONT_12, UI_COL_TEXT);
     lv_obj_align(l1, LV_ALIGN_LEFT_MID, 2, 0);
 
     s_detect_sw = lv_switch_create(bar);
@@ -145,7 +145,7 @@ static void build_toggle_row(lv_obj_t *parent, lv_coord_t w, lv_coord_t y)
                               LV_PART_INDICATOR | LV_STATE_CHECKED);
     lv_obj_add_event_cb(s_detect_sw, detect_toggled, LV_EVENT_VALUE_CHANGED, NULL);
 
-    lv_obj_t *l2 = ui_label(bar, "Notify", &lv_font_montserrat_12, UI_COL_TEXT);
+    lv_obj_t *l2 = ui_label(bar, UI_T(DET_NOTIFY), UI_FONT_12, UI_COL_TEXT);
     lv_obj_align(l2, LV_ALIGN_LEFT_MID, 118, 0);
 
     s_notify_sw = lv_switch_create(bar);
@@ -166,7 +166,7 @@ static void create(lv_obj_t *parent)
 
     s_view = ui_liveview_create(parent, view_w, h - toggle_h - UI_PAD);
     lv_obj_align(ui_liveview_obj(s_view), LV_ALIGN_TOP_LEFT, 0, 0);
-    ui_liveview_set_placeholder(s_view, "Camera off");
+    ui_liveview_set_placeholder(s_view, UI_T(LIVE_CAMERA_OFF));
 
     build_toggle_row(parent, view_w, h - toggle_h);
 
@@ -178,7 +178,7 @@ static void create(lv_obj_t *parent)
     lv_obj_set_style_pad_all(card, 6, 0);
     ui_flex_col(card, 3);
 
-    lv_obj_t *head = ui_label(card, "Detection Events", &lv_font_montserrat_12,
+    lv_obj_t *head = ui_label(card, UI_T(DET_EVENTS), UI_FONT_12,
                               UI_COL_MUTED);
     lv_obj_add_flag(head, LV_OBJ_FLAG_IGNORE_LAYOUT);
     lv_obj_align(head, LV_ALIGN_TOP_LEFT, 0, 0);
@@ -189,7 +189,7 @@ static void create(lv_obj_t *parent)
     lv_obj_add_flag(gear, LV_OBJ_FLAG_IGNORE_LAYOUT);
     lv_obj_align(gear, LV_ALIGN_TOP_RIGHT, 0, -2);
     lv_obj_add_event_cb(gear, open_settings, LV_EVENT_CLICKED, NULL);
-    lv_obj_center(ui_label(gear, LV_SYMBOL_SETTINGS, &lv_font_montserrat_12, UI_COL_MUTED));
+    lv_obj_center(ui_label(gear, LV_SYMBOL_SETTINGS, UI_FONT_12, UI_COL_MUTED));
 
     /* Push the rows below the absolutely-placed heading. */
     lv_obj_set_style_pad_top(card, 22, 0);
@@ -204,13 +204,13 @@ static void create(lv_obj_t *parent)
         lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
 
-        lv_obj_t *icon = ui_label(row, LV_SYMBOL_BELL, &lv_font_montserrat_16, UI_COL_WARN);
+        lv_obj_t *icon = ui_label(row, LV_SYMBOL_BELL, UI_FONT_16, UI_COL_WARN);
         lv_obj_align(icon, LV_ALIGN_LEFT_MID, 6, 0);
 
-        lv_obj_t *title = ui_label(row, "", &lv_font_montserrat_12, UI_COL_TEXT);
+        lv_obj_t *title = ui_label(row, "", UI_FONT_12, UI_COL_TEXT);
         lv_obj_align(title, LV_ALIGN_LEFT_MID, 30, -7);
 
-        lv_obj_t *stamp = ui_label(row, "", &lv_font_montserrat_12, UI_COL_MUTED);
+        lv_obj_t *stamp = ui_label(row, "", UI_FONT_12, UI_COL_MUTED);
         lv_obj_align(stamp, LV_ALIGN_LEFT_MID, 30, 8);
 
         s_rows[i] = row;
@@ -253,7 +253,7 @@ static void on_leave(void)
 }
 
 const ui_screen_def_t ui_screen_detect_def = {
-    .title    = "Detection",
+    .title    = UI_STR_TITLE_DETECT,
     .create   = create,
     .on_enter = on_enter,
     .on_leave = on_leave,
