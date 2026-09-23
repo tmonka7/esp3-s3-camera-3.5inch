@@ -61,6 +61,7 @@ esp_err_t bsp_storage_mount(void)
     bsp_storage_ensure_dir(BSP_SD_MOUNT_POINT "/events");
     bsp_storage_ensure_dir(BSP_SD_MOUNT_POINT "/logs");
     bsp_storage_ensure_dir(BSP_SD_MOUNT_POINT "/access");
+    bsp_storage_ensure_dir(BSP_SD_MOUNT_POINT "/faces");
     return ESP_OK;
 }
 

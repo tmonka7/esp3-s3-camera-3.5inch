@@ -42,6 +42,7 @@ typedef enum {
 
     APP_EVT_ACCESS,              /* access_event_t      */
     APP_EVT_LOCK_STATE,          /* access_lock_state_t */
+    APP_EVT_FACE,                /* face_status_t       */
 } app_event_id_t;
 
 typedef struct {

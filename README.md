@@ -4,10 +4,10 @@ A touch control panel for the Waveshare ESP32-S3-Touch-LCD-3.5-C (320×480 ST779
 over SPI, FT6336 touch, OV5640 camera on the DVP port, TF card, 8 MB PSRAM /
 16 MB flash). Built against **ESP-IDF v5.3.5**.
 
-Fifteen screens: splash, dashboard, camera, UART console, Modbus master,
+Seventeen screens: splash, dashboard, camera, UART console, Modbus master,
 power control, ten room switches, temperature, person/object detection, TF
-card browser, video playback, settings, a date/time editor, door access and
-the credential list.
+card browser, video playback, settings, a date/time editor, door access, the
+credential list, face enrolment and the web stream.
 
 **This project builds with no network access.** There are no
 `idf_component.yml` manifests, so the IDF component manager never runs and
@@ -124,7 +124,9 @@ components/
   svc_detect/            motion + blob detection, pluggable classifier
   svc_notify/            buzzer, CSV event log, HTTP webhook
   svc_access/            door policy: credentials, unlock decision, strike
-  ui/                    15 LVGL screens + shared theme and live-view widget
+  svc_face/              LBPH face recognition -- no model file, no download
+  svc_webcam/            MJPEG over HTTP on port 81
+  ui/                    17 LVGL screens + shared theme and live-view widget
 ```
 
 ### How it fits together
@@ -134,11 +136,18 @@ Services never touch LVGL. They publish small by-value payloads on an
 `on_leave`, and takes the LVGL lock inside its handler. Only one screen is
 built and only one is doing work at a time.
 
-The camera runs in **JPEG mode permanently**, and one frame feeds three
-consumers without a mode switch: the recorder stores it verbatim, the detector
-decodes it 1:8, the live view decodes it to RGB565. Core 1 runs the frame pump
-(JPEG decode is the heaviest periodic work); core 0 runs LVGL, the event loop
-and the pollers.
+The camera runs in **JPEG mode permanently**, and one frame feeds five
+consumers without a mode switch: the recorder stores it verbatim, the web
+stream sends it verbatim, the detector decodes it 1:8, the live view decodes
+it to RGB565, and the face recogniser decodes it to 320×240. Core 1 runs the
+frame pump and the face worker (JPEG decode is the heaviest periodic work);
+core 0 runs LVGL, the event loop and the pollers.
+
+Consumers that do real work take a copy and hand off to their own task rather
+than working inside the pump callback, and each throttles itself — the
+recogniser to about 2 Hz — so a slow consumer costs frame rate rather than
+blocking the others. The pump only runs at all while something is subscribed,
+so a panel with no viewer, no recording and detection off is not capturing.
 
 ## What the pages do
 
@@ -156,7 +165,9 @@ and the pollers.
 | **Settings** | System, network, camera, detection, access, Modbus, about |
 | **Date & Time** | Six rollers, live clock readout, writes through to the RTC |
 | **Door Access** | Lock state, manual unlock, relock countdown, recent decisions |
-| **Credentials** | Enrolled cards: rename, disable, remove |
+| **Credentials** | Enrolled cards: rename, disable, remove; scan or type a UID |
+| **Faces** | Live view with the detected box, five-shot enrolment, enrolled list |
+| **Web Stream** | Stream URL, start/stop, port, viewer state, local preview |
 
 Recordings are MJPEG in AVI, which plays in VLC and every desktop player
 without a codec pack, and whose `idx1` index makes on-device seeking cheap. A
@@ -187,6 +198,36 @@ installed in another.
 
 If no PCF85063 answers on the I2C bus the page says "no RTC" and the time has
 to be re-entered after every power cut.
+
+## Watching the camera from a browser
+
+The panel serves its camera as multipart MJPEG, the same shape the ESP32-CAM
+examples use, so a browser, VLC, ffmpeg, Home Assistant and Frigate all take
+it without help:
+
+| | |
+|---|---|
+| `GET http://<panel-ip>:81/stream` | `multipart/x-mixed-replace`, MJPEG |
+| `GET http://<panel-ip>:81/jpg` | one JPEG |
+| `GET http://<panel-ip>:81/` | a page that just embeds the stream |
+
+Turn it on from **Settings → Camera → Web Stream**, which opens a page showing
+the URL, a start/stop button, the port, whether a viewer is attached, and a
+local preview so you can tell a black stream from a stopped camera. The port
+is configurable; 81 is the default because that is where everyone expects it.
+
+Nothing is re-encoded — the frame the sensor produced is the frame that goes
+out, so serving it costs a memcpy and a socket write rather than CPU.
+
+**One viewer at a time.** A streaming handler never returns and
+`esp_http_server` runs handlers on a single task, so a second viewer would
+block behind the first; the second request is answered `503` instead of being
+left to hang. If you need several viewers, point one of them at the panel and
+fan out from there.
+
+It is **off by default and has no authentication**. Anything that can reach
+the panel on that port can watch the camera. Keep it on a trusted network, or
+put a reverse proxy in front of it.
 
 ## Door access
 
@@ -238,15 +279,52 @@ on an interior or low-risk door, not as security.
 The audit trail is the part that holds up regardless — it records what was
 presented and when, with a photo, whether or not the credential was genuine.
 
-### Face recognition is not built yet
+## Face recognition, without a model file
 
-`svc_access_submit_face()` and the policy around it are in place — threshold,
-enable switch, credential kind, audit path — but nothing calls it. The
-recogniser needs `esp-dl`, which is not vendored, so wiring it up means
-fetching esp-dl and its models once on a networked machine and committing
-them alongside LVGL and esp32-camera. `svc_detect`'s existing backend hook is
-where the model gets gated on motion so it is not run on every frame. Until
-then the Face Entry row reads "unavailable" and cannot be switched on.
+There is no neural network in this firmware and nothing is downloaded. Faces
+are described with **local binary pattern histograms** — label each pixel by
+how its eight neighbours compare to it, histogram those labels over a 4×4
+grid, compare two faces by comparing histograms. LBPH learns nothing, so the
+reference data is simply the faces you enrolled. No weights, no model
+partition, no one-time fetch, and the offline build stays offline.
+
+Finding the face uses the other technique that needs no training data: skin
+occupies a narrow, well-documented band of Cb/Cr in YCbCr, and tone mostly
+lives in Y rather than in the chrominance, so a threshold there works across
+skin tones. Segment on it, take the largest region shaped like a head, grow
+the box a little because skin segmentation stops at the hairline, and crop.
+
+Enrol from **Door Access → Cards → Faces**, or **Settings → Access → Faces**.
+The page shows the live camera with a box drawn round what it has found, so
+you can see what it sees while enrolling. It takes five shots a few hundred
+milliseconds apart rather than one, so the stored reference covers a little
+natural movement. Up to 8 people, five shots each; templates live in
+`/sdcard/faces/db.bin` because they are ~5 KB per person and the NVS
+partition is 24 KB.
+
+### How good is it, honestly
+
+Good enough to tell apart a handful of people who stand roughly where they
+stood when they enrolled, in light of roughly the same colour. Not good
+enough for much else. Specifically, it degrades badly with head angle, with
+a large change in lighting, with glasses that were not worn at enrolment, and
+against a stranger who happens to resemble someone enrolled. Skin
+segmentation also fires on wood, sand and terracotta, which the shape test
+mostly — not always — rejects.
+
+Two things take the edge off the worst failure mode. A match must beat the
+runner-up by a clear margin, so "two mediocre scores" reads as no match
+rather than a coin flip; and the threshold in Settings (default 80%) sets how
+close is close enough. Raise it if you get false accepts, lower it if it
+never recognises you.
+
+And it still cannot tell a face from a photograph of one. That is the camera,
+not the algorithm.
+
+If you later want the accuracy of a CNN, vendoring `esp-dl` replaces exactly
+two functions — descriptor extraction and distance. Enrolment, storage,
+gating, policy and the UI are all independent of which of the two is behind
+them.
 
 ## Two things to know
 
@@ -272,7 +350,7 @@ addresses editable — but the shipped defaults will not match your meter.
 - The IMU (QMI8658) is probed and reported but not otherwise used.
 - OTA update; the partition table leaves room but no OTA path exists.
 - Screen lock: `pin_code` is stored in settings but nothing enforces it.
-- Face recognition: the policy and audit paths exist, the recogniser does not
-  (see "Face recognition is not built yet" above).
 - Card authentication: UID only, no MIFARE sector auth and no DESFire.
 - Door contact and exit button: no GPIOs left for them.
+- Web stream authentication: the MJPEG endpoints are open to the network.
+- More than one simultaneous stream viewer.

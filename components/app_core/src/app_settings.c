@@ -47,6 +47,13 @@ static void load_defaults(app_settings_t *c)
     c->cam_hmirror   = false;
     c->cam_vflip     = true;
     c->cam_active    = 0;
+
+    /* The web stream stays off until someone asks for it: it publishes the
+     * camera to anyone who can reach the panel, which should be a decision
+     * rather than a default. */
+    c->webcam_enabled = false;
+    c->webcam_port    = 81;
+
     for (int i = 0; i < APP_CAMERA_COUNT; i++) {
         strlcpy(c->cam_names[i], k_default_camera_names[i], APP_CAMERA_NAME_LEN);
     }
@@ -92,9 +99,8 @@ static void load_defaults(app_settings_t *c)
     c->temp_reg_outdoor  = 102;
     c->temp_setpoint_c10 = 260;
 
-    /* Access control. The face path starts switched off: it needs a
-     * recogniser that is not built in yet, and a door lock should never come
-     * up enabled by default on a credential nobody has enrolled. */
+    /* Access control. The face path starts switched off because a door should
+     * never come up accepting a credential nobody has enrolled yet. */
     c->access_card_enabled   = true;
     c->access_face_enabled   = false;
     c->access_strike_ms      = 5000;

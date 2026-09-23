@@ -24,6 +24,8 @@ typedef enum {
     UI_SCREEN_DATETIME,
     UI_SCREEN_ACCESS,
     UI_SCREEN_CARDS,
+    UI_SCREEN_FACES,
+    UI_SCREEN_WEBCAM,
     UI_SCREEN_COUNT,
 } ui_screen_id_t;
 

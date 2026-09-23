@@ -263,6 +263,8 @@ esp_err_t ui_init(void)
     s_defs[UI_SCREEN_DATETIME] = &ui_screen_datetime_def;
     s_defs[UI_SCREEN_ACCESS]   = &ui_screen_access_def;
     s_defs[UI_SCREEN_CARDS]    = &ui_screen_cards_def;
+    s_defs[UI_SCREEN_FACES]    = &ui_screen_faces_def;
+    s_defs[UI_SCREEN_WEBCAM]   = &ui_screen_webcam_def;
 
     if (!ui_lock()) {
         return ESP_ERR_TIMEOUT;

@@ -46,7 +46,7 @@ typedef struct {
  */
 typedef void (*media_preview_cb_t)(const uint8_t *rgb565, int w, int h, void *ctx);
 
-/** Called from the pump task with the untouched JPEG, for the detector. */
+/** Called from the pump task with the untouched JPEG. */
 typedef void (*media_frame_cb_t)(const uint8_t *jpeg, size_t len, void *ctx);
 
 esp_err_t svc_media_init(void);
@@ -56,7 +56,17 @@ esp_err_t svc_media_start_preview(void);
 esp_err_t svc_media_stop_preview(void);
 bool      svc_media_preview_active(void);
 void      svc_media_set_preview_cb(media_preview_cb_t cb, void *ctx);
-void      svc_media_set_frame_cb(media_frame_cb_t cb, void *ctx);
+/**
+ * Frame subscribers. More than one consumer wants the raw JPEG -- the
+ * detector and the face recogniser both do -- and each has to be able to
+ * come and go without disturbing the other, so this is a small set rather
+ * than a single slot.
+ *
+ * Callbacks run on the pump task and must not block: decode work belongs on
+ * the subscriber's own task.
+ */
+esp_err_t svc_media_add_frame_cb(media_frame_cb_t cb, void *ctx);
+void      svc_media_remove_frame_cb(media_frame_cb_t cb);
 
 /** Measured preview frame rate, for the status strip. */
 int svc_media_preview_fps(void);

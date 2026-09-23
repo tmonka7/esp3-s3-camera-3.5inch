@@ -21,7 +21,7 @@ extern "C" {
 
 /* Bump whenever the struct layout changes; a mismatch falls back to
  * defaults instead of reading a stale layout. */
-#define APP_SETTINGS_VERSION    4
+#define APP_SETTINGS_VERSION    5
 
 typedef enum {
     APP_LANG_EN = 0,
@@ -78,6 +78,8 @@ typedef struct {
     bool     cam_hmirror;
     bool     cam_vflip;
     uint8_t  cam_active;              /* index into cam_names          */
+    bool     webcam_enabled;          /* serve MJPEG over HTTP         */
+    uint16_t webcam_port;             /* 81 by convention              */
     char     cam_names[APP_CAMERA_COUNT][APP_CAMERA_NAME_LEN];
 
     /* ---- detection ---- */

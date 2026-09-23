@@ -32,8 +32,11 @@ static bool               s_running;
 static bool               s_preview_on;
 static media_preview_cb_t s_preview_cb;
 static void              *s_preview_ctx;
-static media_frame_cb_t   s_frame_cb;
-static void              *s_frame_ctx;
+/* Two consumers want raw frames today (detector, face recogniser) and each
+ * comes and goes independently, so this is a set rather than one slot. */
+#define FRAME_SUBS 4
+static media_frame_cb_t   s_frame_cb[FRAME_SUBS];
+static void              *s_frame_ctx[FRAME_SUBS];
 
 /* Two buffers: the pump decodes into `back`, then publishes it as `front`.
  * The UI only ever reads `front`, and only while it holds the LVGL lock --
@@ -118,15 +121,26 @@ static void record_append(const camera_fb_t *fb)
 /* --------------------------------------------------------------------------
  * Frame pump
  * ------------------------------------------------------------------------ */
+/** True when anything is listening for raw frames. */
+static bool any_frame_sub(void)
+{
+    for (int i = 0; i < FRAME_SUBS; i++) {
+        if (s_frame_cb[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void pump_task(void *arg)
 {
     (void)arg;
 
     while (s_running) {
         /* The pump runs for any consumer, not just the live view: the
-         * detector registers a frame callback and needs frames whether or
-         * not a screen happens to be showing the camera. */
-        if (!s_preview_on && !s_rec_active && !s_frame_cb) {
+         * detector and the face recogniser register frame callbacks and need
+         * frames whether or not a screen happens to be showing the camera. */
+        if (!s_preview_on && !s_rec_active && !any_frame_sub()) {
             vTaskDelay(pdMS_TO_TICKS(50));
             continue;
         }
@@ -149,8 +163,10 @@ static void pump_task(void *arg)
 
         record_append(fb);
 
-        if (s_frame_cb) {
-            s_frame_cb(fb->buf, fb->len, s_frame_ctx);
+        for (int i = 0; i < FRAME_SUBS; i++) {
+            if (s_frame_cb[i]) {
+                s_frame_cb[i](fb->buf, fb->len, s_frame_ctx[i]);
+            }
         }
 
         if (s_preview_on && s_preview_cb) {
@@ -240,10 +256,35 @@ void svc_media_set_preview_cb(media_preview_cb_t cb, void *ctx)
     s_preview_cb  = cb;       /* set last: the pump reads cb before ctx */
 }
 
-void svc_media_set_frame_cb(media_frame_cb_t cb, void *ctx)
+esp_err_t svc_media_add_frame_cb(media_frame_cb_t cb, void *ctx)
 {
-    s_frame_ctx = ctx;
-    s_frame_cb  = cb;
+    ESP_RETURN_ON_FALSE(cb, ESP_ERR_INVALID_ARG, TAG, "cb");
+
+    for (int i = 0; i < FRAME_SUBS; i++) {
+        if (s_frame_cb[i] == cb) {
+            s_frame_ctx[i] = ctx;       /* already subscribed, re-point it */
+            return ESP_OK;
+        }
+    }
+    for (int i = 0; i < FRAME_SUBS; i++) {
+        if (!s_frame_cb[i]) {
+            /* Context before function pointer: the pump task can run between
+             * these two stores, and it tests the function pointer. */
+            s_frame_ctx[i] = ctx;
+            s_frame_cb[i]  = cb;
+            return ESP_OK;
+        }
+    }
+    return ESP_ERR_NO_MEM;
+}
+
+void svc_media_remove_frame_cb(media_frame_cb_t cb)
+{
+    for (int i = 0; i < FRAME_SUBS; i++) {
+        if (s_frame_cb[i] == cb) {
+            s_frame_cb[i] = NULL;
+        }
+    }
 }
 
 int svc_media_preview_fps(void)

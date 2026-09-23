@@ -24,6 +24,8 @@ extern const ui_screen_def_t ui_screen_settings_def;
 extern const ui_screen_def_t ui_screen_datetime_def;
 extern const ui_screen_def_t ui_screen_access_def;
 extern const ui_screen_def_t ui_screen_cards_def;
+extern const ui_screen_def_t ui_screen_faces_def;
+extern const ui_screen_def_t ui_screen_webcam_def;
 
 /* ---- modal edit dialogs (ui_dialog.c) ---------------------------------- *
  *

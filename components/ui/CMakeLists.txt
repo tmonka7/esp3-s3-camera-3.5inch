@@ -19,11 +19,13 @@ idf_component_register(
         "src/ui_dialog.c"
         "src/ui_access.c"
         "src/ui_cards.c"
+        "src/ui_faces.c"
+        "src/ui_webcam.c"
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
     REQUIRES
         bsp app_core
         svc_uart svc_modbus svc_power svc_switch svc_temp svc_media svc_detect svc_notify
-        svc_access
+        svc_access svc_face svc_webcam
         esp_app_format
 )

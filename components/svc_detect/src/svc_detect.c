@@ -415,7 +415,11 @@ esp_err_t svc_detect_set_enabled(bool enabled)
     /* Registering and unregistering the frame callback is what starts and
      * stops the camera pump when nothing else is using it, so a disabled
      * detector costs nothing rather than capturing frames it discards. */
-    svc_media_set_frame_cb(enabled ? media_frame_cb : NULL, NULL);
+    if (enabled) {
+        svc_media_add_frame_cb(media_frame_cb, NULL);
+    } else {
+        svc_media_remove_frame_cb(media_frame_cb);
+    }
 
     app_settings()->detect_enabled = enabled;
     app_settings_commit_deferred();

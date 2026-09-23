@@ -19,6 +19,8 @@
 #include "bsp_storage.h"
 #include "bsp_rfid.h"
 #include "svc_access.h"
+#include "svc_face.h"
+#include "svc_webcam.h"
 #include "svc_detect.h"
 #include "svc_modbus.h"
 #include "ui_internal.h"
@@ -227,6 +229,12 @@ static void row_webhook(lv_event_t *e)
     edit_text("Alert webhook URL", app_settings()->notify_webhook, false, apply_webhook);
 }
 
+static void row_webcam(lv_event_t *e)
+{
+    (void)e;
+    ui_show(UI_SCREEN_WEBCAM);
+}
+
 static void row_quality(lv_event_t *e)
 {
     (void)e;
@@ -419,6 +427,14 @@ static void build_camera(lv_obj_t *p)
     ui_list_row(p, "Vertical Flip",   onoff(cfg->cam_vflip),   row_flip,   NULL);
     ui_list_row(p, "Horizontal Mirror", onoff(cfg->cam_hmirror), row_mirror, NULL);
 
+    if (svc_webcam_running()) {
+        snprintf(buf, sizeof(buf), "on, port %u",
+                 (unsigned)(cfg->webcam_port ? cfg->webcam_port : 81));
+    } else {
+        strlcpy(buf, "off", sizeof(buf));
+    }
+    ui_list_row(p, "Web Stream", buf, row_webcam, NULL);
+
     const sensor_t *s = bsp_camera_sensor();
     if (s) {
         snprintf(buf, sizeof(buf), "0x%04X", s->id.PID);
@@ -491,13 +507,28 @@ static void row_face_toggle(lv_event_t *e)
 
     /* Switching it on with nothing behind it would be a silent no-op, and the
      * user would reasonably assume the door now opens to their face. */
-    if (!cfg->access_face_enabled && !svc_access_face_available()) {
-        ui_toast("No face recogniser is installed");
+    if (!cfg->access_face_enabled && !svc_face_ready()) {
+        ui_toast("Face recognition did not start");
         return;
     }
+    if (!cfg->access_face_enabled && svc_face_subject_count() == 0) {
+        /* Switching it on with nobody enrolled would arm a door that can
+         * never open on a face, and look broken doing it. */
+        ui_toast("Enrol a face first");
+        ui_show(UI_SCREEN_FACES);
+        return;
+    }
+
     cfg->access_face_enabled = !cfg->access_face_enabled;
+    svc_face_set_enabled(cfg->access_face_enabled);
     app_settings_commit();
     build_panel();
+}
+
+static void row_faces(lv_event_t *e)
+{
+    (void)e;
+    ui_show(UI_SCREEN_FACES);
 }
 
 static void row_snapshot_toggle(lv_event_t *e)
@@ -569,9 +600,12 @@ static void build_access(lv_obj_t *p)
                 row_card_toggle, NULL);
 
     ui_list_row(p, "Face Entry",
-                svc_access_face_available() ? onoff(cfg->access_face_enabled)
-                                            : "unavailable",
+                svc_face_ready() ? onoff(cfg->access_face_enabled)
+                                 : "unavailable",
                 row_face_toggle, NULL);
+
+    snprintf(buf, sizeof(buf), "%u enrolled", (unsigned)svc_face_subject_count());
+    ui_list_row(p, "Faces", buf, row_faces, NULL);
 
     snprintf(buf, sizeof(buf), "%u %%", cfg->access_face_threshold);
     ui_list_row(p, "Face Threshold", buf, row_face_threshold, NULL);

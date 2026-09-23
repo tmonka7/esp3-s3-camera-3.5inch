@@ -9,6 +9,7 @@
 
 #include "app_events.h"
 #include "svc_access.h"
+#include "svc_face.h"
 #include "ui_internal.h"
 
 static lv_obj_t *s_list;
@@ -108,6 +109,12 @@ static void scan_clicked(lv_event_t *e)
     } else {
         ui_toast("No reader detected -- use Enter UID");
     }
+}
+
+static void faces_clicked(lv_event_t *e)
+{
+    (void)e;
+    ui_show(UI_SCREEN_FACES);
 }
 
 static void apply_rename(const char *text)
@@ -243,7 +250,7 @@ static void build_list(void)
     char summary[64];
     snprintf(summary, sizeof(summary), "%u of %d slots  -  face: %s",
              (unsigned)n, ACCESS_MAX_CREDENTIALS,
-             svc_access_face_available() ? "ready" : "not installed");
+             svc_face_subject_count() ? "ready" : "none enrolled");
     lv_label_set_text(s_summary, summary);
 
     if (n == 0) {
@@ -284,13 +291,18 @@ static void create(lv_obj_t *parent)
      * reader is wired -- or when it never will be. */
     lv_obj_t *scan = ui_button(card, LV_SYMBOL_REFRESH " Scan card",
                                scan_clicked, NULL);
-    lv_obj_set_size(scan, 150, 32);
+    lv_obj_set_size(scan, 140, 32);
     lv_obj_align(scan, LV_ALIGN_TOP_LEFT, 0, 30);
 
     lv_obj_t *manual = ui_button_soft(card, LV_SYMBOL_KEYBOARD " Enter UID",
                                       manual_clicked, NULL);
-    lv_obj_set_size(manual, 150, 32);
-    lv_obj_align(manual, LV_ALIGN_TOP_LEFT, 158, 30);
+    lv_obj_set_size(manual, 140, 32);
+    lv_obj_align(manual, LV_ALIGN_TOP_LEFT, 148, 30);
+
+    lv_obj_t *faces = ui_button_soft(card, LV_SYMBOL_EYE_OPEN " Faces",
+                                     faces_clicked, NULL);
+    lv_obj_set_size(faces, 140, 32);
+    lv_obj_align(faces, LV_ALIGN_TOP_LEFT, 296, 30);
 
     s_list = lv_obj_create(card);
     lv_obj_remove_style_all(s_list);
