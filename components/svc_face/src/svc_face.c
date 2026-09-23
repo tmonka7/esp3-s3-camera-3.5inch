@@ -45,7 +45,7 @@ static const char *TAG = "svc_face";
  * who both score mediocre is exactly the shape of a false accept. */
 #define AMBIGUITY_RATIO     0.80f
 
-#define DB_PATH             BSP_SD_MOUNT_POINT "/faces/db.bin"
+#define DB_PATH             "/sdcard/faces/db.bin"
 #define DB_MAGIC            0x45434146u     /* "FACE" little-endian */
 #define DB_VERSION          1
 
